@@ -1,85 +1,125 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
-import { collection, getDocs, updateDoc, doc, setDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+import DashboardCards from "@/components/admin/DashboardCards";
+import RecentBookings from "@/components/admin/RecentBookings";
 
 export default function AdminDashboard() {
-  const [allBookings, setAllBookings] = useState<any[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [newFare, setNewFare] = useState("");
-  
-  // New Driver States
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    todayBookings: 0,
+    pendingBookings: 0,
+    completedBookings: 0,
+    cancelledBookings: 0,
+    revenue: 0,
+    customers: 0,
+    drivers: 0,
+  });
 
   useEffect(() => {
-    fetchData();
+    loadDashboard();
   }, []);
 
-  const fetchData = async () => {
-    const querySnapshot = await getDocs(collection(db, "bookings"));
-    setAllBookings(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
-
-  // 1. Driver Create Logic
-  const handleAddDriver = async () => {
+  async function loadDashboard() {
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      await setDoc(doc(db, "users", res.user.uid), {
-        name, email, role: "driver", createdAt: new Date()
-      });
-      alert("Driver Created Successfully!");
-      setEmail(""); setPassword(""); setName("");
-    } catch (err: any) { alert(err.message); }
-  };
+      // Bookings
+      const bookingSnap = await getDocs(collection(db, "bookings"));
 
-  // 2. Fare Edit Logic
-  const updateFare = async (id: string) => {
-    await updateDoc(doc(db, "bookings", id), { fare: newFare });
-    setEditingId(null);
-    fetchData();
-  };
+      const bookingData = bookingSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Users
+      const userSnap = await getDocs(collection(db, "users"));
+
+      const users = userSnap.docs.map((doc) => doc.data());
+
+      const customers = users.filter(
+        (u: any) => u.role === "customer"
+      ).length;
+
+      const drivers = users.filter(
+        (u: any) => u.role === "driver"
+      ).length;
+
+      const today = new Date().toDateString();
+
+      const todayBookings = bookingData.filter((b: any) => {
+        if (!b.createdAt?.toDate) return false;
+
+        return (
+          b.createdAt.toDate().toDateString() === today
+        );
+      }).length;
+
+      const pending = bookingData.filter(
+        (b: any) => b.rideStatus === "Pending"
+      ).length;
+
+      const completed = bookingData.filter(
+        (b: any) => b.rideStatus === "Completed"
+      ).length;
+
+      const cancelled = bookingData.filter(
+        (b: any) => b.rideStatus === "Cancelled"
+      ).length;
+
+      const revenue = bookingData.reduce(
+        (sum: number, booking: any) =>
+          sum + Number(booking.finalFare || 0),
+        0
+      );
+
+      setBookings(bookingData);
+
+      setStats({
+        totalBookings: bookingData.length,
+        todayBookings,
+        pendingBookings: pending,
+        completedBookings: completed,
+        cancelledBookings: cancelled,
+        revenue,
+        customers,
+        drivers,
+      });
+    } catch (err) {
+      console.log(err);
+    }
+
+    setLoading(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center text-xl text-white">
+        Loading Dashboard...
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white p-8 pt-24">
-      <h1 className="text-3xl font-bold mb-8 text-blue-500">Admin Control Panel</h1>
+    <div>
 
-      {/* Driver Registration Section */}
-      <div className="p-6 bg-white/5 border border-blue-500/30 rounded-2xl mb-10">
-        <h2 className="text-xl font-bold mb-4">Add New Driver</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input placeholder="Name" className="p-3 bg-black border rounded" onChange={(e) => setName(e.target.value)} />
-          <input placeholder="Email" className="p-3 bg-black border rounded" onChange={(e) => setEmail(e.target.value)} />
-          <input placeholder="Password" type="password" className="p-3 bg-black border rounded" onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        <button onClick={handleAddDriver} className="mt-4 w-full py-3 bg-blue-600 rounded-lg font-bold">Create Driver</button>
-      </div>
+      <DashboardCards
+        totalBookings={stats.totalBookings}
+        todayBookings={stats.todayBookings}
+        pendingBookings={stats.pendingBookings}
+        completedBookings={stats.completedBookings}
+        cancelledBookings={stats.cancelledBookings}
+        revenue={stats.revenue}
+        customers={stats.customers}
+        drivers={stats.drivers}
+      />
 
-      {/* Bookings Overview */}
-      <div className="space-y-4">
-        {allBookings.map((b: any) => (
-          <div key={b.id} className="p-6 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center">
-            <div>
-              <p className="font-bold">{b.pickup} → {b.dropoff}</p>
-              <p className="text-xs text-gray-400">Status: {b.status}</p>
-            </div>
-            {editingId === b.id ? (
-              <div className="flex gap-2">
-                <input type="number" onChange={(e) => setNewFare(e.target.value)} className="w-20 p-2 bg-black border rounded" />
-                <button onClick={() => updateFare(b.id)} className="px-4 bg-green-600 rounded">Save</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <span className="text-lg">₹{b.fare || "0"}</span>
-                <button onClick={() => setEditingId(b.id)} className="text-blue-400">Edit</button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <RecentBookings bookings={bookings} />
+
     </div>
   );
 }

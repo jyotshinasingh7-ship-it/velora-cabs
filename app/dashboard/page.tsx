@@ -1,36 +1,191 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
 import BookingForm from "@/components/BookingForm";
+import ProfileCard from "@/components/dashboard/ProfileCard";
+import BookingStats from "@/components/dashboard/BookingStats";
+import ActiveBooking from "@/components/dashboard/ActiveBooking";
+import BookingHistory from "@/components/dashboard/BookingHistory";
+
+import { auth, db } from "@/lib/firebase";
+
+import { onAuthStateChanged } from "firebase/auth";
+
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+} from "firebase/firestore";
+
+interface Booking {
+  id: string;
+
+  bookingId: string;
+
+  customerId: string;
+
+  customerName: string;
+
+  pickup: string;
+
+  drop: string;
+
+  vehicleType: string;
+
+  finalFare: number;
+
+  rideStatus: string;
+
+  paymentStatus: string;
+
+  createdAt?: any;
+}
 
 export default function DashboardPage() {
-  return (
-    <main className="min-h-screen bg-[#050816] text-white">
 
-      {/* Header */}
-      <section className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-6 py-6 flex items-center justify-between">
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+
+      if (!user) {
+
+        window.location.href = "/login";
+
+        return;
+
+      }
+
+      const q = query(
+        collection(db, "bookings"),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribeBookings = onSnapshot(q, (snapshot) => {
+
+        const data: Booking[] = [];
+
+        snapshot.forEach((doc) => {
+
+          const booking = {
+            id: doc.id,
+            ...(doc.data() as Omit<Booking, "id">),
+          };
+
+          if (booking.customerId === user.uid) {
+
+            data.push(booking);
+
+          }
+
+        });
+
+        setBookings(data);
+
+        setLoading(false);
+
+      });
+
+      return unsubscribeBookings;
+
+    });
+
+    return () => unsubscribeAuth();
+
+  }, []);
+
+  const activeBooking = useMemo(() => {
+
+    return bookings.find(
+      (booking) =>
+        booking.rideStatus !== "Completed" &&
+        booking.rideStatus !== "Cancelled"
+    );
+
+  }, [bookings]);
+
+  const stats = useMemo(() => {
+
+    return {
+
+      total: bookings.length,
+
+      completed: bookings.filter(
+        (b) => b.rideStatus === "Completed"
+      ).length,
+
+      cancelled: bookings.filter(
+        (b) => b.rideStatus === "Cancelled"
+      ).length,
+
+      pending: bookings.filter(
+        (b) => b.rideStatus === "Pending"
+      ).length,
+
+    };
+
+  }, [bookings]);
+    if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
+          <p className="text-gray-400">Loading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+
+      <div className="mx-auto max-w-7xl px-6 py-8">
+
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Velora Cabs Dashboard</h1>
-            <p className="text-gray-400 mt-1">
-              Book safe, fast and affordable rides.
+            <h1 className="text-4xl font-bold">
+              Customer Dashboard
+            </h1>
+
+            <p className="mt-2 text-gray-400">
+              Welcome back to Velora Cabs
             </p>
           </div>
 
-          <div className="hidden md:flex gap-3">
-            <button className="rounded-xl border border-cyan-500 px-5 py-2 hover:bg-cyan-500 transition">
-              My Bookings
-            </button>
-
-            <button className="rounded-xl bg-cyan-500 px-5 py-2 hover:bg-cyan-600 transition">
-              Profile
-            </button>
-          </div>
+          <ProfileCard />
         </div>
-      </section>
 
-      {/* Main Content */}
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <BookingForm />
-      </section>
+        <div className="grid gap-6 lg:grid-cols-3">
 
-    </main>
+          <div className="lg:col-span-2">
+            <BookingForm />
+          </div>
+
+          <div>
+            <BookingStats stats={stats} />
+          </div>
+
+        </div>
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-3">
+
+          <div className="lg:col-span-1">
+            <ActiveBooking booking={activeBooking ?? null} />
+          </div>
+
+          <div className="lg:col-span-2">
+            <BookingHistory bookings={bookings} />
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
   );
 }

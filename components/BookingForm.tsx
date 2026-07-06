@@ -1,5 +1,6 @@
 "use client";
 
+import { auth, db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -7,13 +8,19 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+
 
 interface Vehicle {
   id: string;
-  basefare: number;
+  baseFare: number;
   perKm: number;
+  minimumKm: number;
   gst: number;
+  toll: number;
+  parking: number;
+  nightCharge: number;
+  driverAllowance: number;
+  waitingCharge: number;
 }
 
 export default function BookingForm() {
@@ -26,10 +33,25 @@ export default function BookingForm() {
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
 
-  const [estimatedFare, setEstimatedFare] = useState(0);
+  const [paymentMethod, setPaymentMethod] =
+    useState("cash");
 
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [distance, setDistance] = useState(10);
+  const [billableKm, setBillableKm] = useState(10);
+
+  const [fareWithoutGST, setFareWithoutGST] =
+    useState(0);
+
+  const [gstAmount, setGstAmount] = useState(0);
+
+  const [estimatedFare, setEstimatedFare] =
+    useState(0);
+
+  const [loadingVehicles, setLoadingVehicles] =
+    useState(true);
+
+  const [bookingLoading, setBookingLoading] =
+    useState(false);
 
   useEffect(() => {
     loadVehiclePrices();
@@ -37,14 +59,36 @@ export default function BookingForm() {
 
   async function loadVehiclePrices() {
     try {
-      const snapshot = await getDocs(collection(db, "settings"));
+      const snapshot = await getDocs(
+        collection(db, "settings")
+      );
 
       const data: Vehicle[] = [];
 
       snapshot.forEach((doc) => {
+        const vehicle = doc.data();
+
         data.push({
           id: doc.id,
-          ...(doc.data() as Omit<Vehicle, "id">),
+
+          baseFare: vehicle.baseFare ?? 0,
+          perKm: vehicle.perKm ?? 0,
+          minimumKm: vehicle.minimumKm ?? 10,
+
+          gst: vehicle.gst ?? 0,
+
+          toll: vehicle.toll ?? 0,
+
+          parking: vehicle.parking ?? 0,
+
+          nightCharge:
+            vehicle.nightCharge ?? 0,
+
+          driverAllowance:
+            vehicle.driverAllowance ?? 0,
+
+          waitingCharge:
+            vehicle.waitingCharge ?? 0,
         });
       });
 
@@ -54,29 +98,68 @@ export default function BookingForm() {
         setSelectedVehicle(data[0]);
       }
     } catch (error) {
-      console.log(error);
-      alert("Unable to load vehicle prices.");
+      console.error(error);
+      alert("Unable to load vehicle pricing.");
     } finally {
       setLoadingVehicles(false);
     }
   }
 
-  useEffect(() => {
+  function generateBookingId() {
+    return (
+      "VC-" +
+      Date.now().toString().slice(-8)
+    );
+  }
+    useEffect(() => {
     if (!selectedVehicle) return;
 
-    const demoDistance = 10;
+    const actualDistance = distance;
 
-    const fare =
-      selectedVehicle.basefare +
-      selectedVehicle.perKm * demoDistance;
+    const minimumKm =
+      selectedVehicle.minimumKm;
+
+    const billable =
+      actualDistance < minimumKm
+        ? minimumKm
+        : actualDistance;
+
+    setBillableKm(billable);
+
+    const distanceFare =
+      billable * selectedVehicle.perKm;
+
+    const subTotal =
+      selectedVehicle.baseFare +
+      distanceFare;
+
+    setFareWithoutGST(subTotal);
 
     const gst =
-      (fare * selectedVehicle.gst) / 100;
+      (subTotal * selectedVehicle.gst) /
+      100;
 
-    setEstimatedFare(Math.round(fare + gst));
-  }, [selectedVehicle]);
+    setGstAmount(Math.round(gst));
 
-  async function handleBookRide() {
+    setEstimatedFare(
+      Math.round(subTotal + gst)
+    );
+  }, [selectedVehicle, distance]);
+    function resetForm() {
+    setName("");
+    setPhone("");
+    setPickup("");
+    setDrop("");
+
+    setPaymentMethod("cash");
+
+    if (vehicles.length > 0) {
+      setSelectedVehicle(vehicles[0]);
+    }
+
+    setDistance(10);
+  }
+    async function handleBookRide() {
     if (
       !name ||
       !phone ||
@@ -91,7 +174,13 @@ export default function BookingForm() {
     try {
       setBookingLoading(true);
 
+      const bookingId = generateBookingId();
+
       await addDoc(collection(db, "bookings"), {
+        bookingId,
+
+        customerId: auth.currentUser?.uid ?? "",
+
         customerName: name,
         phoneNumber: phone,
 
@@ -100,40 +189,54 @@ export default function BookingForm() {
 
         vehicleType: selectedVehicle.id,
 
-        baseFare: selectedVehicle.basefare,
+        distance,
+        billableKm,
+
+        baseFare: selectedVehicle.baseFare,
         perKm: selectedVehicle.perKm,
-        gst: selectedVehicle.gst,
+
+        fareWithoutGST,
+
+        gstPercentage: selectedVehicle.gst,
+        gstAmount,
 
         estimatedFare,
 
+        toll: 0,
+        parking: 0,
+        waitingCharge: 0,
+        nightCharge: 0,
+        driverAllowance: 0,
+
+        finalFare: estimatedFare,
+
+        paymentMethod,
+
         paymentStatus: "Pending",
+
         rideStatus: "Pending",
 
+        driverId: "",
+        driverName: "",
+
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       alert("Ride Booked Successfully!");
 
-      setName("");
-      setPhone("");
-      setPickup("");
-      setDrop("");
-
-      if (vehicles.length > 0) {
-        setSelectedVehicle(vehicles[0]);
-      }
-          } catch (error) {
+      resetForm();
+    } catch (error) {
       console.error(error);
       alert("Booking Failed!");
     } finally {
       setBookingLoading(false);
     }
   }
-
-  return (
+    return (
     <div className="grid lg:grid-cols-2 gap-8">
 
-      {/* LEFT SIDE */}
+      {/* LEFT PANEL */}
 
       <div className="rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl p-8">
 
@@ -213,7 +316,7 @@ export default function BookingForm() {
                 </p>
 
                 <p className="text-sm text-gray-400">
-                  Base Fare ₹{vehicle.basefare}
+                  Base Fare ₹{vehicle.baseFare}
                 </p>
 
               </button>
@@ -223,9 +326,35 @@ export default function BookingForm() {
           )}
 
         </div>
-              </div>
 
-      {/* RIGHT SIDE */}
+        <h2 className="text-2xl font-bold mt-8 mb-4">
+          Payment Method
+        </h2>
+
+        <div className="grid grid-cols-3 gap-3">
+
+          {["cash", "upi", "razorpay"].map((method) => (
+
+            <button
+              key={method}
+              type="button"
+              onClick={() => setPaymentMethod(method)}
+              className={`rounded-xl p-3 border capitalize ${
+                paymentMethod === method
+                  ? "border-cyan-400 bg-cyan-500/20"
+                  : "border-white/10 bg-slate-900"
+              }`}
+            >
+              {method}
+            </button>
+
+          ))}
+
+        </div>
+
+      </div>
+
+      {/* RIGHT PANEL */}
 
       <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8">
 
@@ -233,61 +362,53 @@ export default function BookingForm() {
           Ride Summary
         </h2>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
 
           <div className="flex justify-between">
-            <span className="text-gray-400">
-              Selected Vehicle
-            </span>
-
-            <span className="font-semibold capitalize">
-              {selectedVehicle?.id || "-"}
+            <span>Vehicle</span>
+            <span className="capitalize">
+              {selectedVehicle?.id}
             </span>
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-400">
-              Base Fare
-            </span>
-
-            <span>
-              ₹{selectedVehicle?.basefare ?? 0}
-            </span>
+            <span>Distance</span>
+            <span>{distance} KM</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-400">
-              Price / KM
-            </span>
-
-            <span>
-              ₹{selectedVehicle?.perKm ?? 0}
-            </span>
+            <span>Billable KM</span>
+            <span>{billableKm} KM</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-400">
-              GST
-            </span>
+            <span>Base Fare</span>
+            <span>₹{selectedVehicle?.baseFare ?? 0}</span>
+          </div>
 
-            <span>
-              {selectedVehicle?.gst ?? 0}%
-            </span>
+          <div className="flex justify-between">
+            <span>Price / KM</span>
+            <span>₹{selectedVehicle?.perKm ?? 0}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>GST</span>
+            <span>₹{gstAmount}</span>
           </div>
 
           <hr className="border-white/10" />
 
-          <div className="flex justify-between items-center">
-
-            <span className="text-xl font-bold">
-              Estimated Fare
-            </span>
-
-            <span className="text-3xl font-bold text-cyan-400">
+          <div className="flex justify-between text-xl font-bold">
+            <span>Estimated Fare</span>
+            <span className="text-cyan-400">
               ₹{estimatedFare}
             </span>
-
           </div>
+
+          <p className="text-xs text-gray-400">
+            Toll, parking, waiting charges and night charges
+            will be added only if applicable.
+          </p>
 
         </div>
 
@@ -296,27 +417,15 @@ export default function BookingForm() {
           disabled={bookingLoading}
           className="mt-8 w-full rounded-2xl bg-cyan-500 py-4 text-lg font-bold hover:bg-cyan-600 transition disabled:opacity-50"
         >
-          {bookingLoading
-            ? "Booking Ride..."
-            : "Book Ride"}
+          {bookingLoading ? "Booking Ride..." : "Book Ride"}
         </button>
 
-        <div className="mt-8 h-80 rounded-2xl border border-dashed border-cyan-500/30 bg-slate-900 flex flex-col items-center justify-center">
-
-          <h3 className="text-2xl font-bold">
-            Google Maps
-          </h3>
-
-          <p className="mt-3 text-center text-gray-400 max-w-xs">
-            Live Route, Distance, ETA,
-            Fare Calculation and Pickup Marker
-            will appear here after Google Maps
-            integration.
-          </p>
-
+        <div className="mt-8 h-72 rounded-2xl border border-dashed border-cyan-500/30 bg-slate-900 flex items-center justify-center text-gray-400">
+          Google Maps Integration Coming Soon
         </div>
 
       </div>
-          </div>
+
+    </div>
   );
 }
