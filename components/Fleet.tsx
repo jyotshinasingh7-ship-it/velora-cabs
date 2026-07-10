@@ -1,95 +1,107 @@
+"use client";
+
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+
+const fleet = [
+  {
+    name: "Sedan",
+    image: "/images/fleet/sedan.jpg",
+    seats: "5 Seater",
+    bags: "2 Bags",
+    price: "Starts ₹12/km",
+  },
+  {
+    name: "SUV",
+    image: "/images/fleet/suv.jpg",
+    seats: "7 Seater",
+    bags: "4 Bags",
+    price: "Starts ₹18/km",
+  },
+  {
+    name: "Airport Drop",
+    image: "/images/fleet/airport.jpg",
+    seats: "7 Seater",
+    bags: "5 Bags",
+    price: "Airport Special",
+  },
+  {
+    name: "Corporate Taxi",
+    image: "/images/fleet/corporate.png",
+    seats: "5 Seater",
+    bags: "2 Bags",
+    price: "Monthly Billing",
+  },
+  {
+    name: "Premium Ride",
+    image: "/images/fleet/premium.jpg",
+    seats: "7 Seater",
+    bags: "5 Bags",
+    price: "Luxury Ride",
+  },
+  {
+    name: "E-Rickshaw",
+    image: "/images/fleet/erickshaw.jpg",
+    seats: "4 Seater",
+    bags: "Small Luggage",
+    price: "Budget Ride",
+  },
+  {
+    name: "Tempo Traveller",
+    image: "/images/fleet/tempo.jpg",
+    seats: "12+ Seater",
+    bags: "10 Bags",
+    price: "Group Travel",
+  },
+];
+
 export default function Fleet() {
-  const fleet = [
-    {
-      name: "Hatchback",
-      image:
-        "https://images.unsplash.com/photo-1553440569-bcc63803a83d?w=800",
-      seats: "4 Seats",
-      luggage: "2 Bags",
-      price: "Starts ₹12/km",
-    },
-    {
-      name: "Sedan",
-      image:
-        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800",
-      seats: "4 Seats",
-      luggage: "3 Bags",
-      price: "Minimum 10 KM",
-    },
-    {
-      name: "SUV",
-      image:
-        "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=800",
-      seats: "6 Seats",
-      luggage: "4 Bags",
-      price: "Premium Ride",
-    },
-    {
-      name: "Innova Crysta",
-      image:
-        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800",
-      seats: "7 Seats",
-      luggage: "5 Bags",
-      price: "Most Popular",
-    },
-    {
-      name: "7 Seater",
-      image:
-        "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800",
-      seats: "7 Seats",
-      luggage: "5 Bags",
-      price: "Minimum 14 KM",
-    },
-    {
-      name: "Tempo Traveller",
-      image:
-        "https://images.unsplash.com/photo-1563720223185-11003d516935?w=800",
-      seats: "12+ Seats",
-      luggage: "10 Bags",
-      price: "Best for Groups",
-    },
-  ];
+  const router = useRouter();
 
   return (
-    <section
-      id="fleet"
-      className="py-24 bg-slate-950 text-white"
-    >
+    <section className="py-24 bg-[#050816]">
       <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-5xl font-bold text-center">
-          Our Premium Fleet
+        <h2 className="text-5xl font-bold text-center text-white">
+          Our Fleet
         </h2>
 
-        <p className="text-center text-gray-400 mt-4 mb-16">
-          Choose the perfect vehicle for every journey.
+        <p className="mt-3 mb-14 text-center text-gray-400">
+          Choose the perfect ride for every journey.
         </p>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {fleet.map((car) => (
             <div
               key={car.name}
-              className="bg-white/5 backdrop-blur-xl rounded-3xl overflow-hidden border border-white/10 hover:scale-105 transition duration-300"
+              className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition hover:border-cyan-400 hover:-translate-y-2"
             >
-              <img
-                src={car.image}
-                alt={car.name}
-                className="h-56 w-full object-cover"
-              />
+              <div className="relative h-56">
+                <Image
+                  src={car.image}
+                  alt={car.name}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              </div>
 
               <div className="p-6">
-                <h3 className="text-2xl font-bold">
+                <h3 className="text-2xl font-bold text-white">
                   {car.name}
                 </h3>
 
-                <div className="mt-4 text-gray-300 space-y-2">
+                <div className="mt-4 space-y-2 text-gray-300">
                   <p>👥 {car.seats}</p>
-                  <p>🧳 {car.luggage}</p>
-                  <p className="text-cyan-400 font-semibold">
+                  <p>🧳 {car.bags}</p>
+                  <p className="font-semibold text-cyan-400">
                     {car.price}
                   </p>
                 </div>
 
-                <button className="mt-6 w-full bg-cyan-500 hover:bg-cyan-600 py-3 rounded-xl font-semibold transition">
+                <button
+                  onClick={() => router.push("/login")}
+                  className="mt-6 w-full rounded-xl bg-cyan-500 py-3 font-bold transition hover:bg-cyan-600"
+                >
                   Book Now
                 </button>
               </div>

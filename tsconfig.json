@@ -17,18 +17,26 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+
     "baseUrl": ".",
+
     "paths": {
       "@/*": [
         "./*"
       ]
     },
+
+    "types": [
+      "google.maps"
+    ],
+
     "plugins": [
       {
         "name": "next"
       }
     ]
   },
+
   "include": [
     "next-env.d.ts",
     "**/*.ts",
@@ -36,6 +44,7 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+
   "exclude": [
     "node_modules"
   ]

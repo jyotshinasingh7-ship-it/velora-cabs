@@ -53,24 +53,23 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-72 border-r border-white/10 bg-slate-950/95 backdrop-blur-xl">
+    <aside className="fixed left-0 top-0 h-screen w-72 bg-slate-950 border-r border-white/10 flex flex-col">
 
-      <div className="border-b border-white/10 p-6">
-
-        <h1 className="text-3xl font-extrabold text-cyan-400">
+      {/* Logo */}
+      <div className="p-6 border-b border-white/10">
+        <h1 className="text-3xl font-bold text-cyan-400">
           Velora
         </h1>
 
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="text-gray-400 text-sm">
           Admin Panel
         </p>
-
       </div>
 
-      <nav className="mt-6 px-4">
+      {/* Scroll Menu */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
 
         {menu.map((item) => (
-
           <Link
             key={item.href}
             href={item.href}
@@ -80,25 +79,20 @@ export default function AdminSidebar() {
                 : "text-gray-300 hover:bg-white/10"
             }`}
           >
-            <span className="text-xl">
-              {item.icon}
-            </span>
+            <span className="text-xl">{item.icon}</span>
 
-            <span className="font-medium">
-              {item.title}
-            </span>
-
+            <span>{item.title}</span>
           </Link>
-
         ))}
 
-      </nav>
+      </div>
 
-      <div className="absolute bottom-6 left-4 right-4">
+      {/* Logout */}
+      <div className="p-4 border-t border-white/10">
 
         <button
           onClick={logout}
-          className="w-full rounded-xl bg-red-500 py-3 font-bold transition hover:bg-red-600"
+          className="w-full rounded-xl bg-red-500 py-3 font-bold hover:bg-red-600 transition"
         >
           Logout
         </button>
