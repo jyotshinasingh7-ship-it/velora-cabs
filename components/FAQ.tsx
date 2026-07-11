@@ -1,77 +1,142 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, HelpCircle } from "lucide-react";
 
 const faqs = [
   {
-    question: "How can I book a taxi in Noida?",
+    question: "How do I book a taxi with Velora Mobility?",
     answer:
-      "You can book a taxi online using our booking form or call us directly for instant booking.",
+      "Simply enter your pickup and destination, select your preferred ride type, check the estimated fare and confirm your booking.",
   },
   {
-    question: "Do you provide Airport Taxi Service?",
+    question: "Can I schedule a ride in advance?",
     answer:
-      "Yes, we provide 24×7 airport pickup and drop services to Delhi Airport and nearby locations.",
+      "Yes. You can choose 'Schedule Ride' while booking and select your preferred date and time.",
   },
   {
-    question: "Which payment methods are accepted?",
+    question: "Do you provide airport pickup and drop services?",
     answer:
-      "We accept UPI, Cash, Credit Card, Debit Card and Razorpay payments.",
+      "Yes. We provide 24×7 airport pickup and drop services with professional drivers and flight-friendly scheduling.",
   },
   {
-    question: "Can I book an Outstation Cab?",
+    question: "Which payment methods are supported?",
     answer:
-      "Yes, we provide one-way and round-trip outstation taxi services across North India.",
+      "UPI, Credit Card, Debit Card, Net Banking, Wallets and Cash are supported. Online payment options will continue expanding.",
   },
   {
-    question: "Are your drivers verified?",
+    question: "Can I book an outstation trip?",
     answer:
-      "Yes, every driver is verified and trained for a safe and comfortable ride.",
+      "Yes. One-way and round-trip outstation rides are available with transparent pricing and multiple vehicle options.",
+  },
+  {
+    question: "Are Velora drivers verified?",
+    answer:
+      "Yes. Every driver goes through document verification before joining the platform.",
+  },
+  {
+    question: "Can I join Velora as a driver?",
+    answer:
+      "Yes. Visit the 'Earn With Us' section to apply as a driver or register your own vehicle.",
+  },
+  {
+    question: "Can I attach my own vehicle?",
+    answer:
+      "Absolutely. Vehicle owners can submit their RC, Insurance, Permit and other required documents from the Earn With Us section.",
   },
 ];
 
 export default function FAQ() {
-  const [open, setOpen] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section className="py-24 bg-slate-950 text-white">
-      <div className="max-w-4xl mx-auto px-6">
-        <h2 className="text-5xl font-bold text-center">
-          Frequently Asked Questions
-        </h2>
+    <section
+      id="faq"
+      className="relative overflow-hidden bg-[#05070c] py-24"
+    >
+      <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-400/10 blur-[150px]" />
 
-        <p className="text-center text-gray-400 mt-4 mb-14">
-          Everything you need to know before booking your ride.
-        </p>
+      <div className="relative mx-auto max-w-5xl px-6">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-5 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-amber-300">
+            <HelpCircle size={15} />
+            FAQ
+          </span>
 
-        <div className="space-y-5">
-          {faqs.map((faq, index) => (
-            <div
-              key={index}
-              className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
-            >
-              <button
-                onClick={() =>
-                  setOpen(open === index ? null : index)
-                }
-                className="w-full flex justify-between items-center px-6 py-5 text-left"
+          <h2 className="mt-6 text-4xl font-extrabold text-white lg:text-5xl">
+            Frequently Asked
+            <span className="text-amber-400"> Questions</span>
+          </h2>
+
+          <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-white/55">
+            Find answers to the most common questions about booking,
+            payments, airport transfers, outstation rides and becoming
+            a Velora partner.
+          </p>
+        </div>
+
+        <div className="mt-16 space-y-5">
+          {faqs.map((faq, index) => {
+            const isOpen = openIndex === index;
+
+            return (
+              <div
+                key={faq.question}
+                className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] transition hover:border-amber-400/30"
               >
-                <span className="font-semibold text-lg">
-                  {faq.question}
-                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenIndex(isOpen ? -1 : index)
+                  }
+                  className="flex w-full items-center justify-between px-7 py-6 text-left"
+                >
+                  <span className="pr-6 text-lg font-semibold text-white">
+                    {faq.question}
+                  </span>
 
-                <span className="text-cyan-400 text-2xl">
-                  {open === index ? "−" : "+"}
-                </span>
-              </button>
+                  <ChevronDown
+                    size={22}
+                    className={`text-amber-400 transition-transform duration-300 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
 
-              {open === index && (
-                <div className="px-6 pb-6 text-gray-300">
-                  {faq.answer}
+                <div
+                  className={`grid transition-all duration-300 ${
+                    isOpen
+                      ? "grid-rows-[1fr]"
+                      : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="border-t border-white/10 px-7 py-6 text-sm leading-7 text-white/60">
+                      {faq.answer}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-16 rounded-[30px] border border-amber-400/20 bg-amber-400/10 p-8 text-center backdrop-blur-xl">
+          <h3 className="text-3xl font-bold text-white">
+            Still have questions?
+          </h3>
+
+          <p className="mx-auto mt-4 max-w-2xl text-white/55">
+            Our support team is available 24×7 to help you with booking,
+            payments, corporate travel and driver onboarding.
+          </p>
+
+          <a
+            href="tel:+919997997390"
+            className="mt-8 inline-flex items-center rounded-xl bg-amber-400 px-8 py-4 font-bold text-black transition hover:bg-amber-300"
+          >
+            Call Support
+          </a>
         </div>
       </div>
     </section>
