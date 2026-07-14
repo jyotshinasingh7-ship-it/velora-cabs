@@ -1,8 +1,12 @@
 export interface PricingInput {
   baseFare: number;
   perKm: number;
+  perMinute?: number;
   distanceKm: number;
+  durationMinutes?: number;
   minimumKm: number;
+  minimumFare?: number;
+  platformCharge?: number;
 
   gstPercentage: number;
 
@@ -26,6 +30,7 @@ export interface PricingResult {
   billableKm: number;
 
   distanceFare: number;
+  durationFare: number;
 
   subtotal: number;
 
@@ -42,6 +47,8 @@ export interface PricingResult {
   driverAllowance: number;
 
   discountAmount: number;
+
+  platformCharge: number;
 
   finalFare: number;
 }
@@ -60,6 +67,10 @@ export function calculateRideFare(
 
   const distanceFare =
     billableKm * input.perKm;
+
+  const durationFare =
+    Math.max(0, input.durationMinutes ?? 0) *
+    Math.max(0, input.perMinute ?? 0);
 
   const waitingMinutes =
     Math.max(
@@ -85,11 +96,13 @@ export function calculateRideFare(
   const subtotal =
     input.baseFare +
     distanceFare +
+    durationFare +
     waitingCharge +
     nightCharge +
     input.tollCharge +
     input.parkingCharge +
-    driverAllowance;
+    driverAllowance +
+    Math.max(0, input.platformCharge ?? 0);
 
   const gstAmount =
     subtotal *
@@ -98,15 +111,22 @@ export function calculateRideFare(
   const discount =
     input.discountAmount ?? 0;
 
-  const finalFare =
+  const calculatedFare =
     subtotal +
     gstAmount -
     discount;
+
+  const finalFare = Math.max(
+    calculatedFare,
+    input.minimumFare ?? 0
+  );
 
   return {
     billableKm: round(billableKm),
 
     distanceFare: round(distanceFare),
+
+    durationFare: round(durationFare),
 
     subtotal: round(subtotal),
 
@@ -129,6 +149,10 @@ export function calculateRideFare(
     ),
 
     discountAmount: round(discount),
+
+    platformCharge: round(
+      Math.max(0, input.platformCharge ?? 0)
+    ),
 
     finalFare: round(finalFare),
   };

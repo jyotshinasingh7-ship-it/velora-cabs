@@ -10,15 +10,16 @@ export default function PageHeader({
   action,
 }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 
       <div>
 
-        <h1 className="text-4xl font-bold text-white">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">Velora Operations</p>
+        <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
           {title}
         </h1>
 
-        <p className="mt-2 text-gray-400">
+        <p className="mt-2 text-sm text-white/45">
           {subtitle}
         </p>
 

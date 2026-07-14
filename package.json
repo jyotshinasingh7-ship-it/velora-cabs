@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:test": "node scripts/seed-test-accounts.mjs",
+    "seed:test:cleanup": "node scripts/seed-test-accounts.mjs --cleanup",
+    "seed:test:dry-run": "node scripts/seed-test-accounts.mjs --dry-run"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.1.1",
-    "@vis.gl/react-google-maps": "^1.9.0",
     "firebase": "^12.15.0",
+    "firebase-admin": "^14.1.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^0.542.0",
     "next": "16.2.10",

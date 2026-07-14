@@ -240,22 +240,18 @@ export async function getPhoneRedirectPath(
     return "/driver/dashboard";
   }
 
-  if (data.role === "partner") {
-    return "/partner/dashboard";
-  }
-
   if (
     data.accountType === "driver" &&
     data.applicationStatus !== "approved"
   ) {
-    return "/earn/driver";
+    return "/driver/onboarding";
   }
 
   if (
     data.accountType === "partner" &&
     data.applicationStatus !== "approved"
   ) {
-    return "/earn/vehicle";
+    return "/fleet/onboarding";
   }
 
   return "/dashboard";

@@ -8,6 +8,8 @@ import {
   orderBy,
   query,
   updateDoc,
+  serverTimestamp,
+  type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import BookingDetailsModal from "@/components/admin/BookingDetailsModal";
@@ -50,18 +52,21 @@ interface Booking {
   driverId?: string;
   driverName?: string;
 
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
 }
 
 const STATUS_OPTIONS = [
-  "Pending",
-  "Accepted",
-  "Driver Assigned",
-  "On The Way",
-  "Started",
-  "Completed",
-  "Cancelled",
+  { value: "pending", label: "Pending" },
+  { value: "searching_driver", label: "Searching Driver" },
+  { value: "driver_assigned", label: "Driver Assigned" },
+  { value: "driver_arriving", label: "Driver Arriving" },
+  { value: "driver_arrived", label: "Driver Arrived" },
+  { value: "start_otp_pending", label: "Start OTP Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "stop_otp_pending", label: "End OTP Pending" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 export default function AdminBookingsPage() {
@@ -133,7 +138,7 @@ export default function AdminBookingsPage() {
       const matchesStatus =
         statusFilter === "All"
           ? true
-          : booking.rideStatus === statusFilter;
+          : String(booking.rideStatus ?? "").toLowerCase() === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -150,7 +155,8 @@ export default function AdminBookingsPage() {
         doc(db, "bookings", bookingId),
         {
           rideStatus: status,
-          updatedAt: new Date(),
+          status,
+          updatedAt: serverTimestamp(),
         }
       );
     } catch (error) {
@@ -211,10 +217,10 @@ export default function AdminBookingsPage() {
 
               {STATUS_OPTIONS.map((status) => (
                 <option
-                  key={status}
-                  value={status}
+                  key={status.value}
+                  value={status.value}
                 >
-                  {status}
+                  {status.label}
                 </option>
               ))}
             </select>
@@ -248,7 +254,7 @@ export default function AdminBookingsPage() {
             <h2 className="mt-2 text-3xl font-bold text-yellow-400">
               {
                 bookings.filter(
-                  (b) => b.rideStatus === "Pending"
+                  (b) => ["pending", "searching_driver"].includes(String(b.rideStatus ?? "").toLowerCase())
                 ).length
               }
             </h2>
@@ -264,7 +270,7 @@ export default function AdminBookingsPage() {
             <h2 className="mt-2 text-3xl font-bold text-green-400">
               {
                 bookings.filter(
-                  (b) => b.rideStatus === "Completed"
+                  (b) => String(b.rideStatus ?? "").toLowerCase() === "completed"
                 ).length
               }
             </h2>
@@ -280,7 +286,7 @@ export default function AdminBookingsPage() {
             <h2 className="mt-2 text-3xl font-bold text-red-400">
               {
                 bookings.filter(
-                  (b) => b.rideStatus === "Cancelled"
+                  (b) => String(b.rideStatus ?? "").toLowerCase() === "cancelled"
                 ).length
               }
             </h2>
@@ -412,7 +418,7 @@ export default function AdminBookingsPage() {
 
                     <td className="px-6 py-5">
                       <select
-                        value={booking.rideStatus}
+                        value={String(booking.rideStatus ?? "pending").toLowerCase().replace(/\s+/g, "_")}
                         disabled={updatingId === booking.id}
                         onChange={(e) =>
                           updateRideStatus(
@@ -424,10 +430,10 @@ export default function AdminBookingsPage() {
                       >
                         {STATUS_OPTIONS.map((status) => (
                           <option
-                            key={status}
-                            value={status}
+                            key={status.value}
+                            value={status.value}
                           >
-                            {status}
+                            {status.label}
                           </option>
                         ))}
                       </select>
@@ -564,7 +570,7 @@ export default function AdminBookingsPage() {
                     </p>
 
                     <select
-                      value={booking.rideStatus}
+                      value={String(booking.rideStatus ?? "pending").toLowerCase().replace(/\s+/g, "_")}
                       disabled={updatingId === booking.id}
                       onChange={(e) =>
                         updateRideStatus(
@@ -576,10 +582,10 @@ export default function AdminBookingsPage() {
                     >
                       {STATUS_OPTIONS.map((status) => (
                         <option
-                          key={status}
-                          value={status}
+                          key={status.value}
+                          value={status.value}
                         >
-                          {status}
+                          {status.label}
                         </option>
                       ))}
                     </select>

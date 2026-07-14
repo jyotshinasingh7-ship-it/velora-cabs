@@ -1,5 +1,7 @@
 "use client";
 
+import type { Timestamp } from "firebase/firestore";
+
 interface Booking {
   id: string;
   bookingId: string;
@@ -9,7 +11,7 @@ interface Booking {
   finalFare: number;
   rideStatus: string;
   paymentStatus: string;
-  createdAt?: any;
+  createdAt?: Timestamp | null;
 }
 
 interface BookingHistoryProps {

@@ -4,13 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CarFront,
-  CircleDollarSign,
   Gauge,
-  Headphones,
-  History,
-  Settings,
-  UserRound,
-  WalletCards,
+  MapPinned,
+  PlusCircle,
 } from "lucide-react";
 
 const navigationItems = [
@@ -20,39 +16,14 @@ const navigationItems = [
     icon: Gauge,
   },
   {
-    label: "Active Ride",
-    href: "/driver/active-ride",
-    icon: CarFront,
+    label: "Intercity Requests",
+    href: "/driver/intercity",
+    icon: MapPinned,
   },
   {
-    label: "Ride History",
-    href: "/driver/rides",
-    icon: History,
-  },
-  {
-    label: "Earnings",
-    href: "/driver/earnings",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Wallet",
-    href: "/driver/wallet",
-    icon: WalletCards,
-  },
-  {
-    label: "Profile",
-    href: "/driver/profile",
-    icon: UserRound,
-  },
-  {
-    label: "Settings",
-    href: "/driver/settings",
-    icon: Settings,
-  },
-  {
-    label: "Support",
-    href: "/driver/support",
-    icon: Headphones,
+    label: "Publish Intercity Ride",
+    href: "/driver/intercity/publish",
+    icon: PlusCircle,
   },
 ];
 

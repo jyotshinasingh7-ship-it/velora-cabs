@@ -1,14 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import DashboardCards from "@/components/admin/DashboardCards";
 import RecentBookings from "@/components/admin/RecentBookings";
 
+interface DashboardBooking {
+  id: string;
+  bookingId: string;
+  customerName: string;
+  pickup: string;
+  drop: string;
+  vehicleType: string;
+  finalFare: number;
+  rideStatus: string;
+  status?: string;
+  paymentStatus: string;
+  createdAt?: Timestamp | null;
+}
+
+interface DashboardUser {
+  role?: string;
+}
+
 export default function AdminDashboard() {
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState({
@@ -34,45 +52,50 @@ export default function AdminDashboard() {
       const bookingData = bookingSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      } as DashboardBooking));
 
       // Users
       const userSnap = await getDocs(collection(db, "users"));
 
-      const users = userSnap.docs.map((doc) => doc.data());
+      const users = userSnap.docs.map((doc) => doc.data() as DashboardUser);
 
       const customers = users.filter(
-        (u: any) => u.role === "customer"
+        (user) => user.role === "customer"
       ).length;
 
       const drivers = users.filter(
-        (u: any) => u.role === "driver"
+        (user) => user.role === "driver"
       ).length;
 
       const today = new Date().toDateString();
 
-      const todayBookings = bookingData.filter((b: any) => {
-        if (!b.createdAt?.toDate) return false;
+      const todayBookings = bookingData.filter((booking) => {
+        if (!booking.createdAt) return false;
 
         return (
-          b.createdAt.toDate().toDateString() === today
+          booking.createdAt.toDate().toDateString() === today
         );
       }).length;
 
       const pending = bookingData.filter(
-        (b: any) => b.rideStatus === "Pending"
+        (booking) =>
+          ["pending", "searching_driver"].includes(
+            String(booking.rideStatus ?? booking.status ?? "").toLowerCase()
+          )
       ).length;
 
       const completed = bookingData.filter(
-        (b: any) => b.rideStatus === "Completed"
+        (booking) =>
+          String(booking.rideStatus ?? booking.status ?? "").toLowerCase() === "completed"
       ).length;
 
       const cancelled = bookingData.filter(
-        (b: any) => b.rideStatus === "Cancelled"
+        (booking) =>
+          String(booking.rideStatus ?? booking.status ?? "").toLowerCase() === "cancelled"
       ).length;
 
       const revenue = bookingData.reduce(
-        (sum: number, booking: any) =>
+        (sum, booking) =>
           sum + Number(booking.finalFare || 0),
         0
       );

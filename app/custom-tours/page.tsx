@@ -18,18 +18,11 @@ import {
 import {
   ArrowLeft,
   BusFront,
-  CalendarDays,
   CarFront,
   CheckCircle2,
-  Clock3,
   Crown,
-  Hotel,
   LoaderCircle,
-  Mail,
-  MapPin,
   Phone,
-  Route,
-  UsersRound,
 } from "lucide-react";
 
 import { auth, db } from "@/lib/firebase";

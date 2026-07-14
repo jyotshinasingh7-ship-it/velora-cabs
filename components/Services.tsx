@@ -9,6 +9,7 @@ import {
   Crown,
   Map,
   Plane,
+  UsersRound,
 } from "lucide-react";
 
 const services = [
@@ -35,6 +36,14 @@ const services = [
     icon: Map,
     color: "bg-green-500",
     href: "/book?service=outstation",
+  },
+  {
+    title: "Intercity Ride Share",
+    description:
+      "Reserve fixed-price seats with verified drivers travelling between cities.",
+    icon: UsersRound,
+    color: "bg-amber-500",
+    href: "/intercity",
   },
   {
     title: "Corporate Travel",
@@ -128,13 +137,13 @@ export default function Services() {
           </h3>
 
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
-            Whether you're planning employee transport, business travel,
+            Whether you&apos;re planning employee transport, business travel,
             family vacations or special events, Velora Mobility can
             customize a transportation plan for you.
           </p>
 
           <Link
-            href="/contact"
+            href="/#contact"
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-4 font-bold text-black transition hover:bg-amber-300"
           >
             Contact Our Team

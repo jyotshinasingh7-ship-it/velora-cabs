@@ -1,166 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Loader2, ShieldCheck } from "lucide-react";
 
-import {
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-
-import {
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
-
-import { db } from "@/lib/firebase";
-import { verifyRideOtp } from "@/lib/ride/otp";
-
+import { auth } from "@/lib/firebase";
 import type { RideStatus } from "@/types/booking";
 
 interface RideOTPProps {
   bookingId: string;
-
   rideStatus: RideStatus;
-
   otpHash: string;
-
   type: "start" | "stop";
 }
 
-export default function RideOTP({
-  bookingId,
-  rideStatus,
-  otpHash,
-  type,
-}: RideOTPProps) {
-  const [otp, setOtp] =
-    useState("");
+export default function RideOTP({ bookingId, rideStatus, type }: RideOTPProps) {
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  useEffect(() => {
+    let cancelled = false;
 
-  async function verifyOtp() {
-    if (otp.length !== 6) {
-      alert("Enter valid OTP");
-      return;
-    }
+    async function loadOtp() {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error("Please login again.");
 
-    if (
-      !verifyRideOtp(
-        otp,
-        otpHash
-      )
-    ) {
-      alert("Incorrect OTP");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      if (type === "start") {
-        await updateDoc(
-          doc(db, "bookings", bookingId),
-          {
-            "otp.startOtpVerified":
-              true,
-
-            rideStatus:
-              "in_progress",
-
-            "timeline.startedAt":
-              serverTimestamp(),
-
-            updatedAt:
-              serverTimestamp(),
-          }
+        const token = await currentUser.getIdToken();
+        const response = await fetch(
+          `/api/rides/otp?bookingDocumentId=${encodeURIComponent(bookingId)}`,
+          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
         );
-      } else {
-        await updateDoc(
-          doc(db, "bookings", bookingId),
-          {
-            "otp.stopOtpVerified":
-              true,
-
-            rideStatus:
-              "completed",
-
-            "timeline.completedAt":
-              serverTimestamp(),
-
-            updatedAt:
-              serverTimestamp(),
-          }
-        );
+        const result = (await response.json()) as { otp?: string; message?: string };
+        if (!response.ok) throw new Error(result.message ?? "Unable to load OTP.");
+        if (!cancelled) setOtp(result.otp ?? "");
+      } catch (loadError) {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load OTP.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      alert("OTP Verified");
-    } catch (error) {
-      console.error(error);
-
-      alert("Verification failed");
-    } finally {
-      setLoading(false);
     }
-  }
 
-  if (
-    type === "start" &&
-    rideStatus !==
-      "start_otp_pending"
-  )
-    return null;
+    void loadOtp();
+    return () => { cancelled = true; };
+  }, [bookingId, rideStatus]);
 
-  if (
-    type === "stop" &&
-    rideStatus !==
-      "stop_otp_pending"
-  )
-    return null;
+  const expectedStatus = type === "start" ? "start_otp_pending" : "stop_otp_pending";
+  if (rideStatus !== expectedStatus) return null;
 
   return (
-    <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-6">
-
+    <section className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-6">
       <div className="flex items-center gap-3">
-
         <ShieldCheck className="text-amber-400" />
-
-        <h2 className="text-xl font-bold">
-
-          {type === "start"
-            ? "Start Ride OTP"
-            : "End Ride OTP"}
-
-        </h2>
-
+        <h2 className="text-xl font-bold">{type === "start" ? "Start Ride OTP" : "End Ride OTP"}</h2>
       </div>
 
-      <input
-        type="text"
-        maxLength={6}
-        value={otp}
-        onChange={(e) =>
-          setOtp(
-            e.target.value
-          )
-        }
-        placeholder="Enter OTP"
-        className="mt-6 w-full rounded-xl border border-white/10 bg-slate-900 p-4 text-center text-2xl tracking-[0.4em] outline-none"
-      />
+      <p className="mt-3 text-sm leading-6 text-white/55">
+        Ye OTP sirf assigned driver ko batayein. Driver OTP verify karke ride {type === "start" ? "start" : "complete"} karega.
+      </p>
 
-      <button
-        onClick={verifyOtp}
-        disabled={loading}
-        className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-amber-500 py-4 font-bold text-black hover:bg-amber-400 disabled:opacity-50"
-      >
-        {loading && (
-          <Loader2 className="animate-spin" />
+      <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-center">
+        {loading ? (
+          <Loader2 className="mx-auto animate-spin text-amber-400" />
+        ) : error ? (
+          <p className="text-sm text-red-300">{error}</p>
+        ) : (
+          <p className="text-3xl font-extrabold tracking-[0.35em] text-amber-300">{otp || "------"}</p>
         )}
-
-        Verify OTP
-      </button>
-
-    </div>
+      </div>
+    </section>
   );
 }

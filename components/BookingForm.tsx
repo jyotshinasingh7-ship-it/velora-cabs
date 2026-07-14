@@ -4,17 +4,21 @@ import {
   FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   serverTimestamp,
+  setDoc,
+  Timestamp,
 } from "firebase/firestore";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import {
   CalendarDays,
   CarFront,
@@ -35,10 +39,18 @@ import BookingMap from "@/components/BookingMap";
 import LocationAutocomplete, {
   type SelectedLocation,
 } from "@/components/LocationAutocomplete";
+import { isEmailVerificationRequired, logoutUser } from "@/lib/auth";
+import { calculateRideFare, isNightRide } from "@/lib/ride/pricing";
 
 type BookingMode = "now" | "schedule";
 type BookingFor = "self" | "someone_else";
 type PaymentMethod = "cash" | "upi" | "razorpay";
+type ServiceType = "local" | "airport" | "outstation";
+type IntercityTripType = "one_way" | "round_trip";
+
+interface BookingFormProps {
+  serviceType?: ServiceType;
+}
 
 interface Vehicle {
   id: string;
@@ -47,7 +59,10 @@ interface Vehicle {
   seats: number;
   baseFare: number;
   perKm: number;
+  perMinute: number;
   minimumKm: number;
+  minimumFare: number;
+  platformCharge: number;
   gst: number;
   toll: number;
   parking: number;
@@ -60,8 +75,11 @@ interface Vehicle {
 interface FareDetails {
   billableKm: number;
   distanceFare: number;
+  durationFare: number;
   subtotal: number;
   gstAmount: number;
+  nightCharge: number;
+  platformCharge: number;
   estimatedFare: number;
 }
 
@@ -119,7 +137,14 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
-export default function BookingForm() {
+export default function BookingForm({ serviceType = "local" }: BookingFormProps) {
+  const router = useRouter();
+  const isIntercity = serviceType === "outstation";
+  const submissionLockRef = useRef(false);
+  const clientRequestIdRef = useRef("");
+  const bookingIdRef = useRef("");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [vehicles, setVehicles] =
     useState<Vehicle[]>([]);
 
@@ -127,7 +152,12 @@ export default function BookingForm() {
     useState<Vehicle | null>(null);
 
   const [bookingMode, setBookingMode] =
-    useState<BookingMode>("now");
+    useState<BookingMode>(isIntercity ? "schedule" : "now");
+
+  const [intercityTripType, setIntercityTripType] =
+    useState<IntercityTripType>("one_way");
+
+  const [returnDate, setReturnDate] = useState("");
 
   const [bookingFor, setBookingFor] =
     useState<BookingFor>("self");
@@ -154,10 +184,10 @@ export default function BookingForm() {
   const [travelTime, setTravelTime] =
     useState("");
 
-  const [distance, setDistance] =
+  const [distanceMeters, setDistanceMeters] =
     useState(0);
 
-  const [duration, setDuration] =
+  const [durationSeconds, setDurationSeconds] =
     useState(0);
 
   const [paymentMethod, setPaymentMethod] =
@@ -185,18 +215,34 @@ export default function BookingForm() {
     []
   );
 
+  const distance = distanceMeters / 1000;
+  const duration = Math.ceil(durationSeconds / 60);
+
   useEffect(() => {
-    void loadCustomerProfile();
     void loadVehiclePrices();
   }, []);
 
-  async function loadCustomerProfile() {
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
+  useEffect(() => onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      setCurrentUser(null);
+      setAuthLoading(false);
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
       return;
     }
 
+    if (isEmailVerificationRequired(user)) {
+      await logoutUser();
+      router.replace("/login?error=email-not-verified");
+      return;
+    }
+
+    setCurrentUser(user);
+    setAuthLoading(false);
+    await loadCustomerProfile(user);
+  }), [router]);
+
+  async function loadCustomerProfile(currentUser: User) {
     setName(
       currentUser.displayName ?? ""
     );
@@ -272,8 +318,14 @@ export default function BookingForm() {
             Number(data.baseFare) || 0,
           perKm:
             Number(data.perKm) || 0,
+          perMinute:
+            Number(data.perMinute) || 0,
           minimumKm:
             Number(data.minimumKm) || 1,
+          minimumFare:
+            Number(data.minimumFare) || 0,
+          platformCharge:
+            Number(data.platformCharge) || 0,
           gst:
             Number(data.gst) || 0,
           toll:
@@ -326,48 +378,57 @@ export default function BookingForm() {
         return {
           billableKm: 0,
           distanceFare: 0,
+          durationFare: 0,
           subtotal: 0,
           gstAmount: 0,
+          nightCharge: 0,
+          platformCharge: 0,
           estimatedFare: 0,
         };
       }
 
-      const billableKm = Math.max(
-        distance,
-        selectedVehicle.minimumKm
-      );
+      const routeMultiplier =
+        isIntercity && intercityTripType === "round_trip" ? 2 : 1;
 
-      const distanceFare =
-        billableKm *
-        selectedVehicle.perKm;
-
-      const subtotal =
-        selectedVehicle.baseFare +
-        distanceFare;
-
-      const gstAmount =
-        (subtotal *
-          selectedVehicle.gst) /
-        100;
+      const rideDate = bookingMode === "schedule" && travelDate && travelTime
+        ? new Date(`${travelDate}T${travelTime}`)
+        : new Date();
+      const pricing = calculateRideFare({
+        baseFare: selectedVehicle.baseFare,
+        perKm: selectedVehicle.perKm,
+        perMinute: selectedVehicle.perMinute,
+        distanceKm: distance * routeMultiplier,
+        durationMinutes: duration * routeMultiplier,
+        minimumKm: selectedVehicle.minimumKm,
+        minimumFare: selectedVehicle.minimumFare,
+        platformCharge: selectedVehicle.platformCharge,
+        gstPercentage: selectedVehicle.gst,
+        isNightRide: isNightRide(rideDate.getHours()),
+        nightCharge: selectedVehicle.nightCharge,
+        tollCharge: 0,
+        parkingCharge: 0,
+        waitingMinutes: 0,
+        freeWaitingMinutes: 0,
+        waitingChargePerMinute: selectedVehicle.waitingCharge,
+        driverAllowance: selectedVehicle.driverAllowance,
+        driverAllowanceApplicable: isIntercity,
+      });
 
       return {
-        billableKm: Number(
-          billableKm.toFixed(2)
-        ),
-        distanceFare: Math.round(
-          distanceFare
-        ),
-        subtotal: Math.round(subtotal),
-        gstAmount: Math.round(gstAmount),
-        estimatedFare: Math.round(
-          subtotal + gstAmount
-        ),
+        billableKm: pricing.billableKm,
+        distanceFare: pricing.distanceFare,
+        durationFare: pricing.durationFare,
+        subtotal: pricing.subtotal,
+        gstAmount: pricing.gstAmount,
+        nightCharge: pricing.nightCharge,
+        platformCharge: pricing.platformCharge,
+        estimatedFare: pricing.finalFare,
       };
-    }, [distance, selectedVehicle]);
+    }, [bookingMode, distance, duration, intercityTripType, isIntercity, selectedVehicle, travelDate, travelTime]);
 
   function resetRoute() {
-    setDistance(0);
-    setDuration(0);
+    setDistanceMeters(0);
+    setDurationSeconds(0);
     setSuccessMessage("");
   }
 
@@ -384,7 +445,7 @@ export default function BookingForm() {
   }
 
   function validateBooking() {
-    if (!auth.currentUser) {
+    if (!currentUser) {
       return "Please login before booking a ride.";
     }
 
@@ -415,6 +476,12 @@ export default function BookingForm() {
       dropoffLocation.placeId
     ) {
       return "Pickup and destination cannot be the same.";
+    }
+
+    const coordinates = [pickupLocation.latitude, pickupLocation.longitude, dropoffLocation.latitude, dropoffLocation.longitude];
+
+    if (coordinates.some((coordinate) => coordinate === null || !Number.isFinite(coordinate))) {
+      return "The selected locations do not include valid map coordinates. Please select them again.";
     }
 
     if (!selectedVehicle) {
@@ -449,6 +516,14 @@ export default function BookingForm() {
       ) {
         return "Scheduled rides must be booked at least 30 minutes in advance.";
       }
+
+      if (
+        isIntercity &&
+        intercityTripType === "round_trip" &&
+        (!returnDate || returnDate <= travelDate)
+      ) {
+        return "Return date must be after the pickup date.";
+      }
     }
 
     return null;
@@ -470,9 +545,6 @@ export default function BookingForm() {
       return;
     }
 
-    const currentUser =
-      auth.currentUser;
-
     if (
       !currentUser ||
       !selectedVehicle
@@ -481,22 +553,28 @@ export default function BookingForm() {
     }
 
     try {
+      if (submissionLockRef.current) {
+        return;
+      }
+      submissionLockRef.current = true;
       setBookingLoading(true);
 
-      const bookingId =
-        generateBookingId();
+      const bookingId = bookingIdRef.current || generateBookingId();
+      const clientRequestId = clientRequestIdRef.current || crypto.randomUUID();
+      bookingIdRef.current = bookingId;
+      clientRequestIdRef.current = clientRequestId;
 
       const scheduledAt =
         bookingMode === "schedule"
-          ? new Date(
-              `${travelDate}T${travelTime}`
-            )
+          ? Timestamp.fromDate(new Date(`${travelDate}T${travelTime}`))
           : null;
 
-      await addDoc(
-        collection(db, "bookings"),
+      const bookingDocument = doc(db, "bookings", clientRequestId);
+      await setDoc(
+        bookingDocument,
         {
           bookingId,
+          clientRequestId,
 
           customerId: currentUser.uid,
           userId: currentUser.uid,
@@ -504,10 +582,20 @@ export default function BookingForm() {
           customerName: name.trim(),
           customerEmail:
             currentUser.email ?? "",
+          customerPhone: phone.trim(),
           phoneNumber: phone.trim(),
 
           bookingFor,
           bookingType: bookingMode,
+          bookingMode,
+          serviceType,
+          tripType: isIntercity
+            ? intercityTripType
+            : "local",
+          returnDate:
+            isIntercity && intercityTripType === "round_trip"
+              ? returnDate
+              : "",
 
           pickup:
             pickupLocation.address,
@@ -549,7 +637,11 @@ export default function BookingForm() {
 
           distance,
           distanceKm: distance,
+          distanceMeters,
+          distanceKilometers: Number(distance.toFixed(2)),
           durationMinutes: duration,
+          durationSeconds,
+          durationText: `${duration} min`,
           billableKm:
             fareDetails.billableKm,
 
@@ -557,8 +649,11 @@ export default function BookingForm() {
             selectedVehicle.baseFare,
           perKm:
             selectedVehicle.perKm,
+          perMinute: selectedVehicle.perMinute,
           distanceFare:
             fareDetails.distanceFare,
+          durationFare:
+            fareDetails.durationFare,
 
           fareWithoutGST:
             fareDetails.subtotal,
@@ -572,11 +667,26 @@ export default function BookingForm() {
           finalFare:
             fareDetails.estimatedFare,
 
+          fareType: "estimate",
+          fareBreakdown: {
+            baseFare: selectedVehicle.baseFare,
+            distanceFare: fareDetails.distanceFare,
+            durationFare: fareDetails.durationFare,
+            billableKm: fareDetails.billableKm,
+            gstPercentage: selectedVehicle.gst,
+            gstAmount: fareDetails.gstAmount,
+            nightCharge: fareDetails.nightCharge,
+            platformCharge: fareDetails.platformCharge,
+            minimumFare: selectedVehicle.minimumFare,
+            estimatedFare: fareDetails.estimatedFare,
+          },
+
           toll: 0,
           parking: 0,
           waitingCharge: 0,
-          nightCharge: 0,
-          driverAllowance: 0,
+          nightCharge: fareDetails.nightCharge,
+          platformCharge: fareDetails.platformCharge,
+          driverAllowance: isIntercity ? selectedVehicle.driverAllowance : 0,
 
           paymentMethod,
           paymentStatus: "Pending",
@@ -586,18 +696,81 @@ export default function BookingForm() {
 
           driverId: "",
           driverName: "",
+          requestedDriverId: "",
 
           specialInstructions:
             specialInstructions.trim(),
+
+          source: "web",
+          platform: "web",
 
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         }
       );
 
-      setSuccessMessage(
-        `Ride ${bookingId} booked successfully.`
-      );
+      try {
+        await fetch("/api/notifications/events", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${await currentUser.getIdToken()}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "booking_created", documentId: bookingDocument.id }),
+        });
+      } catch (notificationError) {
+        console.error("Booking notification creation failed:", notificationError);
+      }
+
+      if (bookingMode === "now") {
+        try {
+          const idToken =
+            await currentUser.getIdToken();
+
+          const dispatchResponse = await fetch(
+            "/api/rides/dispatch",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                bookingDocumentId:
+                  bookingDocument.id,
+              }),
+            }
+          );
+
+          if (!dispatchResponse.ok) {
+            throw new Error(
+              "Driver dispatch request failed."
+            );
+          }
+
+          const dispatchResult =
+            (await dispatchResponse.json()) as {
+              driverRequested: boolean;
+            };
+
+          setSuccessMessage(
+            dispatchResult.driverRequested
+              ? `Ride ${bookingId} booked. Finding your nearest driver.`
+              : `Ride ${bookingId} booked. We are still searching for an available driver.`
+          );
+        } catch (dispatchError) {
+          console.error(
+            "Initial ride dispatch failed:",
+            dispatchError
+          );
+
+          setSuccessMessage(
+            `Ride ${bookingId} booked. Driver search will continue shortly.`
+          );
+        }
+      } else {
+        setSuccessMessage(
+          `Ride ${bookingId} scheduled successfully.`
+        );
+      }
 
       setPickup("");
       setDropoff("");
@@ -607,12 +780,14 @@ export default function BookingForm() {
       setDropoffLocation(
         createEmptyLocation()
       );
-      setDistance(0);
-      setDuration(0);
+      setDistanceMeters(0);
+      setDurationSeconds(0);
       setSpecialInstructions("");
       setTravelDate("");
       setTravelTime("");
-      setBookingMode("now");
+      setBookingMode(isIntercity ? "schedule" : "now");
+      setIntercityTripType("one_way");
+      setReturnDate("");
       setBookingFor("self");
       setPaymentMethod("cash");
 
@@ -621,13 +796,20 @@ export default function BookingForm() {
           vehicles[0]
         );
       }
+      bookingIdRef.current = "";
+      clientRequestIdRef.current = "";
     } catch {
       setFormError(
         "Booking failed. Please try again."
       );
     } finally {
+      submissionLockRef.current = false;
       setBookingLoading(false);
     }
+  }
+
+  if (authLoading) {
+    return <div className="flex min-h-72 items-center justify-center gap-3 text-sm text-white/50"><LoaderCircle size={20} className="animate-spin text-amber-400" />Checking your account...</div>;
   }
 
   return (
@@ -635,6 +817,26 @@ export default function BookingForm() {
       onSubmit={handleBookRide}
       className="space-y-7"
     >
+      {isIntercity ? (
+        <div>
+          <p className="mb-3 text-sm font-medium text-white/70">Intercity trip type</p>
+          <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/25 p-1">
+            {(["one_way", "round_trip"] as const).map((tripType) => (
+              <button
+                key={tripType}
+                type="button"
+                onClick={() => {
+                  setIntercityTripType(tripType);
+                  if (tripType === "one_way") setReturnDate("");
+                }}
+                className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${intercityTripType === tripType ? "bg-amber-400 text-black" : "text-white/55 hover:text-white"}`}
+              >
+                {tripType === "one_way" ? "One Way" : "Round Trip"}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/25 p-1">
         <button
           type="button"
@@ -668,13 +870,14 @@ export default function BookingForm() {
           Schedule Ride
         </button>
       </div>
+      )}
 
       <div>
         <p className="mb-3 text-sm font-medium text-white/70">
           Who is travelling?
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${isIntercity && intercityTripType === "round_trip" ? "sm:grid-cols-3" : "grid-cols-2"}`}>
           <button
             type="button"
             onClick={() =>
@@ -864,6 +1067,27 @@ export default function BookingForm() {
               />
             </div>
           </div>
+
+          {isIntercity && intercityTripType === "round_trip" && (
+            <div>
+              <label htmlFor="dashboard-return-date" className="mb-2 block text-sm font-medium text-white/70">Return date</label>
+              <div className="relative">
+                <CalendarDays size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-400" />
+                <input
+                  id="dashboard-return-date"
+                  type="date"
+                  min={travelDate || minimumDate}
+                  value={returnDate}
+                  onChange={(event) => {
+                    setReturnDate(event.target.value);
+                    setFormError("");
+                  }}
+                  className="w-full rounded-xl border border-white/10 bg-black/25 py-4 pl-11 pr-3 text-sm outline-none focus:border-amber-400/60"
+                  required
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -881,10 +1105,10 @@ export default function BookingForm() {
             routeDistance,
             routeDuration
           ) => {
-            setDistance(
+            setDistanceMeters(
               routeDistance
             );
-            setDuration(
+            setDurationSeconds(
               routeDuration
             );
           }}
@@ -1061,6 +1285,11 @@ export default function BookingForm() {
 
         <div className="mt-5 space-y-3 text-sm">
           <SummaryRow
+            label="Service"
+            value={serviceType === "outstation" ? "Outstation" : serviceType === "airport" ? "Airport transfer" : "Local taxi"}
+          />
+
+          <SummaryRow
             label="Vehicle"
             value={
               selectedVehicle?.name ??
@@ -1107,6 +1336,18 @@ export default function BookingForm() {
             label="Distance fare"
             value={`₹${fareDetails.distanceFare}`}
           />
+
+          {fareDetails.durationFare > 0 && (
+            <SummaryRow label="Time fare" value={`₹${fareDetails.durationFare}`} />
+          )}
+
+          {fareDetails.nightCharge > 0 && (
+            <SummaryRow label="Night charge" value={`₹${fareDetails.nightCharge}`} />
+          )}
+
+          {fareDetails.platformCharge > 0 && (
+            <SummaryRow label="Platform charge" value={`₹${fareDetails.platformCharge}`} />
+          )}
 
           <SummaryRow
             label="GST"

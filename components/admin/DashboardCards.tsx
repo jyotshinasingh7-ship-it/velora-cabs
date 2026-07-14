@@ -1,4 +1,14 @@
-"use client";
+import {
+  BookOpenCheck,
+  CalendarDays,
+  CarFront,
+  CheckCircle2,
+  Clock3,
+  IndianRupee,
+  UsersRound,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 
 interface DashboardCardsProps {
   totalBookings: number;
@@ -11,87 +21,28 @@ interface DashboardCardsProps {
   drivers: number;
 }
 
-export default function DashboardCards({
-  totalBookings,
-  todayBookings,
-  pendingBookings,
-  completedBookings,
-  cancelledBookings,
-  revenue,
-  customers,
-  drivers,
-}: DashboardCardsProps) {
-  const cards = [
-    {
-      title: "Total Bookings",
-      value: totalBookings,
-      icon: "📖",
-      color: "from-cyan-500 to-blue-600",
-    },
-    {
-      title: "Today's Bookings",
-      value: todayBookings,
-      icon: "📅",
-      color: "from-green-500 to-emerald-600",
-    },
-    {
-      title: "Pending",
-      value: pendingBookings,
-      icon: "⏳",
-      color: "from-yellow-500 to-orange-500",
-    },
-    {
-      title: "Completed",
-      value: completedBookings,
-      icon: "✅",
-      color: "from-lime-500 to-green-600",
-    },
-    {
-      title: "Cancelled",
-      value: cancelledBookings,
-      icon: "❌",
-      color: "from-red-500 to-pink-600",
-    },
-    {
-      title: "Revenue",
-      value: `₹${revenue.toLocaleString()}`,
-      icon: "💰",
-      color: "from-purple-500 to-indigo-600",
-    },
-    {
-      title: "Customers",
-      value: customers,
-      icon: "👥",
-      color: "from-sky-500 to-cyan-600",
-    },
-    {
-      title: "Drivers",
-      value: drivers,
-      icon: "🚖",
-      color: "from-fuchsia-500 to-pink-600",
-    },
+export default function DashboardCards(props: DashboardCardsProps) {
+  const cards: Array<{ title: string; value: string | number; icon: LucideIcon; tone?: string }> = [
+    { title: "Total Bookings", value: props.totalBookings, icon: BookOpenCheck },
+    { title: "Today's Bookings", value: props.todayBookings, icon: CalendarDays },
+    { title: "Pending", value: props.pendingBookings, icon: Clock3, tone: "text-amber-300" },
+    { title: "Completed", value: props.completedBookings, icon: CheckCircle2, tone: "text-emerald-300" },
+    { title: "Cancelled", value: props.cancelledBookings, icon: XCircle, tone: "text-red-300" },
+    { title: "Revenue", value: `₹${props.revenue.toLocaleString("en-IN")}`, icon: IndianRupee, tone: "text-amber-300" },
+    { title: "Customers", value: props.customers, icon: UsersRound },
+    { title: "Drivers", value: props.drivers, icon: CarFront },
   ];
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => (
-        <div
-          key={card.title}
-          className={`rounded-3xl bg-gradient-to-br ${card.color} p-6 shadow-xl`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-white/80">{card.title}</p>
-
-              <h2 className="mt-3 text-4xl font-bold text-white">
-                {card.value}
-              </h2>
-            </div>
-
-            <div className="text-5xl">{card.icon}</div>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map(({ title, value, icon: Icon, tone }) => (
+        <article key={title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 transition hover:-translate-y-0.5 hover:border-amber-400/20">
+          <div className="flex items-start justify-between gap-4">
+            <div><p className="text-sm text-white/40">{title}</p><p className={`mt-3 text-3xl font-extrabold ${tone ?? "text-white"}`}>{value}</p></div>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400"><Icon size={20} /></span>
           </div>
-        </div>
+        </article>
       ))}
-    </div>
+    </section>
   );
 }

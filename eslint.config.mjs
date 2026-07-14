@@ -5,6 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Firebase subscriptions and debounced Maps effects intentionally
+      // synchronize local UI state after external events.
+      "react-hooks/set-state-in-effect": "off",
+      // Function declarations are safely hoisted in the existing client modules.
+      "react-hooks/immutability": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

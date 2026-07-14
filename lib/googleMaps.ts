@@ -50,3 +50,11 @@ export async function loadRoutesLibrary() {
     "routes"
   )) as google.maps.RoutesLibrary;
 }
+
+export async function loadMarkerLibrary() {
+  configureGoogleMaps();
+
+  return (await importLibrary(
+    "marker"
+  )) as google.maps.MarkerLibrary;
+}

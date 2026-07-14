@@ -614,7 +614,7 @@ export default function PhoneAuth() {
             </div>
 
             <p className="mt-8 text-center text-xs leading-6 text-white/35">
-              By continuing you agree to Velora Mobility's Terms of Service
+              By continuing you agree to Velora Mobility&apos;s Terms of Service
               and Privacy Policy.
             </p>
           </div>

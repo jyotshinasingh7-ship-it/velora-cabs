@@ -1,217 +1,67 @@
-"use client";
-
+import Image from "next/image";
 import Link from "next/link";
-import {
-  CarFront,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
-} from "lucide-react";
+import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
+
+const quickLinks = [
+  { label: "Home", href: "/" },
+  { label: "Services", href: "/#services" },
+  { label: "Fleet", href: "/#fleet" },
+  { label: "Corporate", href: "/corporate" },
+  { label: "Book a Ride", href: "/book" },
+  { label: "Driver Portal", href: "/driver/login" },
+];
+
+const services = ["Local Taxi", "Airport Transfer", "Outstation Taxi", "Corporate Mobility", "Ride Sharing", "Custom Tours"];
 
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-white/10 bg-[#040507] text-white">
-      <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-400/10 blur-[150px]" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[34rem] -translate-x-1/2 rounded-full bg-amber-400/[0.07] blur-[130px]" />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-20">
-        <div className="grid gap-12 lg:grid-cols-4">
+      <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.25fr_0.75fr_0.8fr_1fr]">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3">
+              <span className="relative h-12 w-12 overflow-hidden rounded-2xl border border-amber-400/20 bg-white/5">
+                <Image src="/images/logo.png" alt="Velora Mobility" fill sizes="48px" className="object-contain p-1" />
+              </span>
+              <span>
+                <span className="block text-xl font-bold">Velora <span className="text-amber-400">Mobility</span></span>
+                <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/35">Premium rides, every mile</span>
+              </span>
+            </Link>
 
-          {/* Company */}
+            <p className="mt-6 max-w-sm text-sm leading-7 text-white/45">Reliable local, airport, outstation and corporate mobility with verified drivers and transparent ride updates.</p>
+            <div className="mt-6 inline-flex items-center gap-3 rounded-2xl border border-amber-400/15 bg-amber-400/[0.06] px-4 py-3 text-sm text-white/60"><ShieldCheck size={18} className="text-amber-400" /> Safe, verified and secure rides</div>
+          </div>
 
           <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400">
-                <CarFront className="text-black" size={28} />
-              </div>
+            <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-white">Explore</h3>
+            <nav className="mt-5 grid gap-3 text-sm text-white/45">
+              {quickLinks.map((link) => <Link key={link.href} href={link.href} className="w-fit transition hover:translate-x-1 hover:text-amber-400">{link.label}</Link>)}
+            </nav>
+          </div>
 
-              <div>
-                <h2 className="text-3xl font-bold">
-                  Velora
-                  <span className="text-amber-400"> Mobility</span>
-                </h2>
-
-                <p className="text-sm text-white/40">
-                  Premium Cab Services
-                </p>
-              </div>
-            </div>
-
-            <p className="mt-6 leading-8 text-white/55">
-              Velora Mobility provides premium local taxi,
-              airport transfer, outstation, corporate travel,
-              ride sharing and luxury mobility solutions across India.
-            </p>
-
-            <div className="mt-8 flex gap-4">
-              <a
-                href="#"
-                className="rounded-xl border border-white/10 p-3 transition hover:border-amber-400 hover:bg-amber-400 hover:text-black"
-              >
-                <Facebook size={18} />
-              </a>
-
-              <a
-                href="#"
-                className="rounded-xl border border-white/10 p-3 transition hover:border-amber-400 hover:bg-amber-400 hover:text-black"
-              >
-                <Instagram size={18} />
-              </a>
-
-              <a
-                href="#"
-                className="rounded-xl border border-white/10 p-3 transition hover:border-amber-400 hover:bg-amber-400 hover:text-black"
-              >
-                <Linkedin size={18} />
-              </a>
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-white">Services</h3>
+            <div className="mt-5 grid gap-3 text-sm text-white/45">
+              {services.map((service) => <span key={service}>{service}</span>)}
             </div>
           </div>
 
-          {/* Quick Links */}
-
           <div>
-            <h3 className="text-2xl font-bold">
-              Quick Links
-            </h3>
-
-            <div className="mt-6 flex flex-col gap-4 text-white/60">
-              <Link href="/">Home</Link>
-              <Link href="/#services">Services</Link>
-              <Link href="/#fleet">Fleet</Link>
-              <Link href="/corporate">Corporate</Link>
-              <Link href="/earn">Earn With Us</Link>
-              <Link href="/book">Book Ride</Link>
+            <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-white">Contact</h3>
+            <div className="mt-5 space-y-4 text-sm">
+              <a href="tel:+919997997390" className="flex items-start gap-3 text-white/50 transition hover:text-amber-400"><Phone size={17} className="mt-0.5 shrink-0 text-amber-400" /> +91 99979 97390</a>
+              <a href="mailto:info@veloramobility.in" className="flex items-start gap-3 break-all text-white/50 transition hover:text-amber-400"><Mail size={17} className="mt-0.5 shrink-0 text-amber-400" /> info@veloramobility.in</a>
+              <div className="flex items-start gap-3 text-white/50"><MapPin size={17} className="mt-0.5 shrink-0 text-amber-400" /> Noida, Uttar Pradesh, India</div>
             </div>
           </div>
-
-          {/* Services */}
-
-          <div>
-            <h3 className="text-2xl font-bold">
-              Services
-            </h3>
-
-            <div className="mt-6 flex flex-col gap-4 text-white/60">
-              <span>Local Taxi</span>
-              <span>Airport Transfer</span>
-              <span>Outstation Taxi</span>
-              <span>Corporate Mobility</span>
-              <span>Ride Sharing</span>
-              <span>Tempo Traveller</span>
-            </div>
-          </div>
-
-          {/* Contact */}
-
-          <div>
-            <h3 className="text-2xl font-bold">
-              Contact
-            </h3>
-
-            <div className="mt-6 space-y-5">
-
-              <div className="flex gap-3">
-                <Phone
-                  size={20}
-                  className="mt-1 text-amber-400"
-                />
-                <div>
-                  <p className="text-white font-medium">
-                    Phone
-                  </p>
-
-                  <a
-                    href="tel:+919997997390"
-                    className="text-white/60 hover:text-amber-400"
-                  >
-                    +91 99979 97390
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Mail
-                  size={20}
-                  className="mt-1 text-amber-400"
-                />
-
-                <div>
-                  <p className="text-white font-medium">
-                    Email
-                  </p>
-
-                  <a
-                    href="mailto:info@veloramobility.in"
-                    className="text-white/60 hover:text-amber-400"
-                  >
-                    info@veloramobility.in
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <MapPin
-                  size={20}
-                  className="mt-1 text-amber-400"
-                />
-
-                <div>
-                  <p className="text-white font-medium">
-                    Address
-                  </p>
-
-                  <p className="text-white/60">
-                    Noida, Uttar Pradesh,
-                    <br />
-                    India
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 flex items-center gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4">
-                <ShieldCheck className="text-amber-400" />
-
-                <div>
-                  <p className="font-semibold">
-                    Safe & Verified
-                  </p>
-
-                  <p className="text-sm text-white/55">
-                    Secure rides with verified drivers.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
 
-        <div className="mt-16 flex flex-col items-center justify-between gap-5 border-t border-white/10 pt-8 lg:flex-row">
-
-          <p className="text-center text-sm text-white/45">
-            © 2026 Velora Mobility. All Rights Reserved.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-6 text-sm text-white/45">
-            <Link href="/privacy-policy">
-              Privacy Policy
-            </Link>
-
-            <Link href="/terms-and-conditions">
-              Terms & Conditions
-            </Link>
-
-            <Link href="/refund-policy">
-              Refund Policy
-            </Link>
-
-            <Link href="/cancellation-policy">
-              Cancellation Policy
-            </Link>
-          </div>
+        <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-7 text-xs text-white/30 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 Velora Mobility. All rights reserved.</p>
+          <p>Built for safer, simpler journeys.</p>
         </div>
       </div>
     </footer>

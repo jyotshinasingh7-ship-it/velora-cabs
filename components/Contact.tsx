@@ -165,7 +165,7 @@ export default function Contact() {
             </Link>
 
             <Link
-              href="/earn"
+                href="/signup?intent=driver"
               className="mt-4 flex items-center justify-center rounded-xl border border-white/10 py-4 font-semibold text-white transition hover:bg-white/5"
             >
               Earn With Velora

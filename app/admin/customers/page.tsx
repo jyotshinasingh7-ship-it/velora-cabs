@@ -1,262 +1,81 @@
 "use client";
 
-import { Search, Eye, Pencil, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
+import { Mail, Phone, Search, UserRoundCheck, UsersRound } from "lucide-react";
 
-type Customer = {
-  id: number;
+import { db } from "@/lib/firebase";
+
+interface CustomerRecord {
+  id: string;
   name: string;
   email: string;
-  phone: string;
-  joined: string;
-  status: "Active" | "Blocked";
-};
-
-const customers: Customer[] = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul@gmail.com",
-    phone: "+91 9876543210",
-    joined: "02 Jul 2026",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Aman Verma",
-    email: "aman@gmail.com",
-    phone: "+91 9988776655",
-    joined: "04 Jul 2026",
-    status: "Blocked",
-  },
-  {
-    id: 3,
-    name: "Priya Singh",
-    email: "priya@gmail.com",
-    phone: "+91 9123456780",
-    joined: "05 Jul 2026",
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Karan Mehta",
-    email: "karan@gmail.com",
-    phone: "+91 9090909090",
-    joined: "06 Jul 2026",
-    status: "Active",
-  },
-];
+  phoneNumber: string;
+  role: string;
+  createdAt?: Timestamp | null;
+}
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => onSnapshot(collection(db, "users"), (snapshot) => {
+    setCustomers(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as CustomerRecord)).filter((item) => !item.role || item.role === "customer"));
+    setLoading(false);
+  }, () => setLoading(false)), []);
 
   const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) =>
-      customer.name.toLowerCase().includes(search.toLowerCase()) ||
-      customer.email.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone.includes(search)
-    );
-  }, [search]);
-
-  const active = customers.filter((c) => c.status === "Active").length;
-  const blocked = customers.filter((c) => c.status === "Blocked").length;
+    const term = search.trim().toLowerCase();
+    return customers.filter((customer) => !term || [customer.name, customer.email, customer.phoneNumber].some((value) => String(value ?? "").toLowerCase().includes(term)));
+  }, [customers, search]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-
-      {/* Header */}
-
-      <div className="flex items-center justify-between mb-8">
-
-        <div>
-          <h1 className="text-4xl font-bold">
-            Customers
-          </h1>
-
-          <p className="text-gray-400 mt-2">
-            Manage all registered customers.
-          </p>
-        </div>
-
+    <div className="space-y-7">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">Customer Management</p>
+        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Customers</h1>
+        <p className="mt-2 text-sm text-white/45">View registered Velora customer accounts and contact details.</p>
       </div>
 
-      {/* Stats */}
-
-      <div className="grid gap-6 md:grid-cols-3 mb-8">
-
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
-
-          <Users className="mb-4 text-cyan-400" size={40} />
-
-          <p className="text-gray-400">
-            Total Customers
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-            {customers.length}
-          </h2>
-
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
-
-          <p className="text-green-400 font-semibold">
-            Active Customers
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-            {active}
-          </h2>
-
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
-
-          <p className="text-red-400 font-semibold">
-            Blocked Customers
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-            {blocked}
-          </h2>
-
-        </div>
-
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SummaryCard icon={UsersRound} label="Registered Customers" value={customers.length} />
+        <SummaryCard icon={UserRoundCheck} label="Visible Results" value={filteredCustomers.length} />
       </div>
 
-      {/* Search */}
-
-      <div className="relative mb-8">
-
-        <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
-          size={20}
-        />
-
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search customer..."
-          className="w-full rounded-xl border border-white/10 bg-slate-900 py-4 pl-12 pr-4 outline-none focus:border-cyan-500"
-        />
-
+      <div className="relative">
+        <Search size={19} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-400" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email or phone..." className="w-full rounded-2xl border border-white/10 bg-white/[0.035] py-4 pl-12 pr-4 text-sm outline-none transition placeholder:text-white/25 focus:border-amber-400/50" />
       </div>
 
-      {/* Table */}
-
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
-
-        <div className="overflow-x-auto">
-
-          <table className="w-full">
-
-            <thead className="bg-slate-800">
-
-              <tr>
-
-                <th className="px-6 py-4 text-left">
-                  Customer
-                </th>
-
-                <th className="px-6 py-4 text-left">
-                  Phone
-                </th>
-
-                <th className="px-6 py-4 text-left">
-                  Joined
-                </th>
-
-                <th className="px-6 py-4 text-left">
-                  Status
-                </th>
-
-                <th className="px-6 py-4 text-center">
-                  Actions
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {filteredCustomers.map((customer) => (
-
-                <tr
-                  key={customer.id}
-                  className="border-t border-white/10 hover:bg-white/5 transition"
-                >
-
-                  <td className="px-6 py-5">
-
-                    <div>
-
-                      <h3 className="font-semibold">
-                        {customer.name}
-                      </h3>
-
-                      <p className="text-sm text-gray-400">
-                        {customer.email}
-                      </p>
-
-                    </div>
-
-                  </td>
-
-                  <td className="px-6">
-                    {customer.phone}
-                  </td>
-
-                  <td className="px-6">
-                    {customer.joined}
-                  </td>
-
-                  <td className="px-6">
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        customer.status === "Active"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
-                      }`}
-                    >
-                      {customer.status}
-                    </span>
-
-                  </td>
-
-                  <td className="px-6">
-
-                    <div className="flex items-center justify-center gap-3">
-
-                      <button className="rounded-lg bg-cyan-500 p-2 hover:bg-cyan-600">
-                        <Eye size={18} />
-                      </button>
-
-                      <button className="rounded-lg bg-yellow-500 p-2 hover:bg-yellow-600">
-                        <Pencil size={18} />
-                      </button>
-
-                      <button className="rounded-lg bg-red-500 p-2 hover:bg-red-600">
-                        <Trash2 size={18} />
-                      </button>
-
-                    </div>
-
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
-
+      {loading ? (
+        <EmptyState text="Loading customers..." />
+      ) : filteredCustomers.length === 0 ? (
+        <EmptyState text="No customers found." />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredCustomers.map((customer) => (
+            <article key={customer.id} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 transition hover:border-amber-400/20">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-lg font-extrabold text-black">{(customer.name || customer.email || "C").charAt(0).toUpperCase()}</span>
+                <div className="min-w-0"><h2 className="truncate font-bold">{customer.name || "Velora Customer"}</h2><p className="mt-1 text-xs text-white/35">Customer account</p></div>
+              </div>
+              <div className="mt-5 space-y-3 text-sm text-white/50">
+                <div className="flex items-center gap-3"><Mail size={16} className="shrink-0 text-amber-400" /><span className="truncate">{customer.email || "Email not added"}</span></div>
+                <div className="flex items-center gap-3"><Phone size={16} className="shrink-0 text-amber-400" /><span>{customer.phoneNumber || "Phone not added"}</span></div>
+              </div>
+            </article>
+          ))}
         </div>
-
-      </div>
-
+      )}
     </div>
   );
+}
+
+function SummaryCard({ icon: Icon, label, value }: { icon: typeof UsersRound; label: string; value: number }) {
+  return <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.035] p-5"><div><p className="text-sm text-white/40">{label}</p><p className="mt-2 text-3xl font-bold">{value}</p></div><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400"><Icon size={22} /></span></div>;
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] py-16 text-center text-sm text-white/40">{text}</div>;
 }

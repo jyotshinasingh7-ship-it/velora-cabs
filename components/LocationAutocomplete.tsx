@@ -52,6 +52,7 @@ export default function LocationAutocomplete({
     useRef<HTMLDivElement | null>(null);
 
   const requestIdRef = useRef(0);
+  const selectedValueRef = useRef("");
 
   const sessionTokenRef =
     useRef<google.maps.places.AutocompleteSessionToken | null>(
@@ -99,6 +100,15 @@ export default function LocationAutocomplete({
 
   useEffect(() => {
     const cleanValue = value.trim();
+    requestIdRef.current += 1;
+
+    if (cleanValue && cleanValue === selectedValueRef.current) {
+      setSuggestions([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
 
     if (cleanValue.length < 2) {
       setSuggestions([]);
@@ -176,6 +186,7 @@ export default function LocationAutocomplete({
       setIsOpen(
         formattedSuggestions.length > 0
       );
+      setError(formattedSuggestions.length === 0 ? "No matching Google locations were found." : null);
     } catch (fetchError) {
       console.error(
         "Location suggestions failed:",
@@ -222,6 +233,7 @@ export default function LocationAutocomplete({
         place.formattedAddress ||
         place.displayName ||
         item.text;
+      selectedValueRef.current = selectedAddress.trim();
 
       const latitude =
         place.location?.lat() ?? null;
@@ -259,6 +271,7 @@ export default function LocationAutocomplete({
     event: React.ChangeEvent<HTMLInputElement>
   ) {
     const nextValue = event.target.value;
+    selectedValueRef.current = "";
 
     onChange(nextValue);
 

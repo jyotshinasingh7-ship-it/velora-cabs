@@ -66,7 +66,7 @@ export default function Testimonials() {
               </div>
 
               <p className="mt-6 text-sm leading-7 text-white/60">
-                "{review.review}"
+                &ldquo;{review.review}&rdquo;
               </p>
 
               <div className="mt-8 border-t border-white/10 pt-5">

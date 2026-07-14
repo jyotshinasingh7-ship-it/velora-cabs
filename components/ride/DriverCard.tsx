@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
+
 import {
   BadgeCheck,
   CarFront,
   MessageCircle,
   Phone,
-  Star,
   Users,
 } from "lucide-react";
 
@@ -64,9 +65,12 @@ export default function DriverCard({
 
         {driver.photoURL ? (
 
-          <img
+          <Image
             src={driver.photoURL}
             alt={driver.name}
+            width={96}
+            height={96}
+            unoptimized
             className="h-24 w-24 rounded-full border-2 border-cyan-500 object-cover"
           />
 
@@ -332,7 +336,7 @@ export default function DriverCard({
           </li>
 
           <li>
-            • Contact support immediately if vehicle details don't match.
+            • Contact support immediately if vehicle details don&apos;t match.
           </li>
 
           <li>

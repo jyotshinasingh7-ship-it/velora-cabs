@@ -26,11 +26,13 @@ import BookingForm from "@/components/BookingForm";
 import ProfileCard from "@/components/dashboard/ProfileCard";
 import ActiveBooking from "@/components/dashboard/ActiveBooking";
 import BookingHistory from "@/components/dashboard/BookingHistory";
+import NotificationBell from "@/components/NotificationBell";
 
 import { auth, db } from "@/lib/firebase";
 import {
   getRedirectPath,
   getUserProfile,
+  isEmailVerificationRequired,
   logoutUser,
 } from "@/lib/auth";
 
@@ -175,6 +177,12 @@ export default function DashboardPage() {
 
         if (!user) {
           router.replace("/login");
+          return;
+        }
+
+        if (isEmailVerificationRequired(user)) {
+          await logoutUser();
+          router.replace("/login?error=email-not-verified");
           return;
         }
 
@@ -346,6 +354,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <ProfileCard />
 
             <button

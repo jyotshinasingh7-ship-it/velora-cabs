@@ -13,8 +13,8 @@ interface BookingMapProps {
   pickupPlaceId?: string;
   dropoffPlaceId?: string;
   onDistanceChange?: (
-    distance: number,
-    duration: number
+    distanceMeters: number,
+    durationSeconds: number
   ) => void;
 }
 
@@ -262,21 +262,17 @@ export default function BookingMap({
         directionsRendererRef.current
           ?.setDirections(result);
 
-        const distanceInKilometres =
-          (leg.distance?.value ?? 0) /
-          1000;
+        const distanceMeters =
+          leg.distance?.value ?? 0;
 
-        const durationInMinutes =
-          (leg.duration?.value ?? 0) /
-          60;
+        const durationSeconds =
+          leg.duration?.value ?? 0;
 
         onDistanceChangeRef.current?.(
-          Number(
-            distanceInKilometres.toFixed(2)
-          ),
-          Math.ceil(durationInMinutes)
+          distanceMeters,
+          durationSeconds
         );
-      } catch {
+      } catch (routeError) {
         if (cancelled) {
           return;
         }
@@ -288,9 +284,12 @@ export default function BookingMap({
 
         onDistanceChangeRef.current?.(0, 0);
 
-        setMapError(
-          "A driving route could not be calculated. Please select both locations again from the Google suggestions."
-        );
+        const status = typeof routeError === "object" && routeError !== null && "code" in routeError
+          ? String((routeError as { code?: unknown }).code)
+          : "";
+        setMapError(status.includes("ZERO_RESULTS")
+          ? "No driving route exists between the selected locations."
+          : "A driving route could not be calculated. Please select both locations again from the Google suggestions.");
       } finally {
         if (!cancelled) {
           setRouteLoading(false);

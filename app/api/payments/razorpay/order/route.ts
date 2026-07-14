@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import {
-  doc,
-  getDoc,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-
-import { db } from "@/lib/firebase";
+import { FieldValue } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/server/firebaseAdmin";
+import { requireUser } from "@/lib/server/requireUser";
+import { calculateAuthoritativePayment } from "@/lib/server/paymentAmount";
 
 export const runtime = "nodejs";
 
@@ -35,6 +31,7 @@ function getRazorpayClient() {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireUser(request);
     const body =
       (await request.json()) as CreateOrderRequest;
 
@@ -56,16 +53,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const bookingReference = doc(
-      db,
-      "bookings",
-      bookingDocumentId
-    );
+    const bookingReference = getAdminDb()
+      .collection("bookings")
+      .doc(bookingDocumentId);
+    const bookingSnapshot = await bookingReference.get();
 
-    const bookingSnapshot =
-      await getDoc(bookingReference);
-
-    if (!bookingSnapshot.exists()) {
+    if (!bookingSnapshot.exists) {
       return NextResponse.json(
         {
           message: "Booking not found.",
@@ -77,7 +70,14 @@ export async function POST(request: Request) {
     }
 
     const bookingData =
-      bookingSnapshot.data();
+      bookingSnapshot.data() ?? {};
+
+    if (
+      bookingData?.customerId !== user.uid &&
+      bookingData?.userId !== user.uid
+    ) {
+      return NextResponse.json({ message: "You cannot pay for this booking." }, { status: 403 });
+    }
 
     const storedBookingId = String(
       bookingData.bookingId ?? ""
@@ -93,6 +93,11 @@ export async function POST(request: Request) {
           status: 400,
         }
       );
+    }
+
+    const rideStatus = String(bookingData.rideStatus ?? bookingData.status ?? "").toLowerCase();
+    if (!["stop_otp_pending", "completed"].includes(rideStatus)) {
+      return NextResponse.json({ message: "Payment is not available at this ride stage." }, { status: 409 });
     }
 
     const paymentStatus = String(
@@ -111,30 +116,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const finalFare = Number(
-      bookingData.fare?.finalFare ??
-        bookingData.finalFare ??
-        bookingData.estimatedFare ??
-        0
-    );
-
-    if (
-      !Number.isFinite(finalFare) ||
-      finalFare <= 0
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "A valid final fare is not available.",
-        },
-        {
-          status: 400,
-        }
-      );
+    const existingOrderId = String(bookingData.razorpayOrderId ?? bookingData.razorpay?.razorpayOrderId ?? "");
+    const existingAmount = Number(bookingData.paymentOrderAmount ?? 0);
+    if (existingOrderId && existingAmount > 0) {
+      return NextResponse.json({ orderId: existingOrderId, amount: existingAmount, currency: "INR", keyId: process.env.RAZORPAY_KEY_ID }, { status: 200 });
     }
 
-    const amountInPaise =
-      Math.round(finalFare * 100);
+    const authoritative = await calculateAuthoritativePayment(bookingData);
+    const amountInPaise = authoritative.amountInPaise;
 
     const razorpay = getRazorpayClient();
 
@@ -154,7 +143,7 @@ export async function POST(request: Request) {
         },
       });
 
-    await updateDoc(bookingReference, {
+    await bookingReference.update({
       paymentMethod: "razorpay",
       paymentStatus: "pending",
 
@@ -170,12 +159,18 @@ export async function POST(request: Request) {
       paymentOrderAmount:
         amountInPaise,
 
+      payableFare: authoritative.payableFare,
+      payableFareBasis: "server_directions_and_pricing",
+      payableFareBreakdown: authoritative.fareBreakdown,
+      paymentRouteDistanceMeters: authoritative.routeDistanceMeters,
+      paymentRouteDurationSeconds: authoritative.routeDurationSeconds,
+
       paymentCurrency: "INR",
 
       paymentOrderCreatedAt:
-        serverTimestamp(),
+        FieldValue.serverTimestamp(),
 
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json(
@@ -195,14 +190,17 @@ export async function POST(request: Request) {
       "Razorpay order creation failed:",
       error
     );
+    const message = error instanceof Error ? error.message : "";
+    const unauthenticated = message === "UNAUTHENTICATED";
+    const setupMissing = message === "PAYMENT_ROUTE_VERIFICATION_NOT_CONFIGURED";
 
     return NextResponse.json(
       {
         message:
-          "Unable to create Razorpay order.",
+          unauthenticated ? "Please login again." : setupMissing ? "Online payment is temporarily unavailable." : "Unable to create Razorpay order.",
       },
       {
-        status: 500,
+          status: unauthenticated ? 401 : setupMissing ? 503 : 500,
       }
     );
   }

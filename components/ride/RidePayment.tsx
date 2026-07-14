@@ -12,6 +12,8 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import { auth } from "@/lib/firebase";
+
 import type {
   FareBreakdown,
   PaymentMethod,
@@ -188,11 +190,16 @@ export default function RidePayment({
       setError("");
       setSuccess("");
 
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Please login again.");
+      const idToken = await currentUser.getIdToken();
+
       const response = await fetch(
         "/api/payments/cash",
         {
           method: "POST",
           headers: {
+            Authorization: `Bearer ${idToken}`,
             "Content-Type":
               "application/json",
           },
@@ -234,6 +241,10 @@ export default function RidePayment({
       setError("");
       setSuccess("");
 
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Please login again.");
+      const idToken = await currentUser.getIdToken();
+
       const scriptLoaded =
         await loadRazorpayScript();
 
@@ -251,6 +262,7 @@ export default function RidePayment({
         {
           method: "POST",
           headers: {
+            Authorization: `Bearer ${idToken}`,
             "Content-Type":
               "application/json",
           },
@@ -317,6 +329,7 @@ export default function RidePayment({
                 {
                   method: "POST",
                   headers: {
+                    Authorization: `Bearer ${idToken}`,
                     "Content-Type":
                       "application/json",
                   },

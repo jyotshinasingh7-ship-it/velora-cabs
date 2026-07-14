@@ -1,14 +1,10 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-
-import { db } from "@/lib/firebase";
+import { FieldValue } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/server/firebaseAdmin";
+import { requireUser } from "@/lib/server/requireUser";
+import { createNotification, setNotification } from "@/lib/server/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +77,7 @@ function safeSignatureMatch(
 
 export async function POST(request: Request) {
   try {
+    const user = await requireUser(request);
     const body =
       (await request.json()) as VerifyPaymentRequest;
 
@@ -122,16 +119,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const bookingReference = doc(
-      db,
-      "bookings",
-      bookingDocumentId
-    );
+    const db = getAdminDb();
+    const bookingReference = db.collection("bookings").doc(bookingDocumentId);
+    const bookingSnapshot = await bookingReference.get();
 
-    const bookingSnapshot =
-      await getDoc(bookingReference);
-
-    if (!bookingSnapshot.exists()) {
+    if (!bookingSnapshot.exists) {
       return NextResponse.json(
         {
           message: "Booking not found.",
@@ -143,7 +135,14 @@ export async function POST(request: Request) {
     }
 
     const bookingData =
-      bookingSnapshot.data();
+      bookingSnapshot.data() ?? {};
+
+    if (
+      bookingData.customerId !== user.uid &&
+      bookingData.userId !== user.uid
+    ) {
+      return NextResponse.json({ message: "You cannot verify payment for this booking." }, { status: 403 });
+    }
 
     const storedBookingId = String(
       bookingData.bookingId ?? ""
@@ -159,6 +158,11 @@ export async function POST(request: Request) {
           status: 400,
         }
       );
+    }
+
+    const rideStatus = String(bookingData.rideStatus ?? bookingData.status ?? "").toLowerCase();
+    if (!["stop_otp_pending", "completed"].includes(rideStatus)) {
+      return NextResponse.json({ message: "Payment verification is not available at this ride stage." }, { status: 409 });
     }
 
     const existingPaymentStatus = String(
@@ -335,6 +339,7 @@ export async function POST(request: Request) {
       finalPaymentStatus !==
       "captured"
     ) {
+      await createNotification({ recipientUid: user.uid, recipientRole: "customer", title: "Payment unsuccessful", message: "Your payment was not completed. You can try again from your ride details.", type: "payment_failed", eventKey: `booking:${bookingDocumentId}:payment_failed:${razorpayPaymentId}`, actionUrl: "/dashboard", metadata: { bookingDocumentId, paymentStatus: finalPaymentStatus }, source: "razorpay" });
       return NextResponse.json(
         {
           message:
@@ -348,8 +353,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await runTransaction(
-      db,
+    await db.runTransaction(
       async (transaction) => {
         const latestBookingSnapshot =
           await transaction.get(
@@ -357,7 +361,7 @@ export async function POST(request: Request) {
           );
 
         if (
-          !latestBookingSnapshot.exists()
+          !latestBookingSnapshot.exists
         ) {
           throw new Error(
             "Booking no longer exists."
@@ -365,7 +369,7 @@ export async function POST(request: Request) {
         }
 
         const latestBookingData =
-          latestBookingSnapshot.data();
+          latestBookingSnapshot.data() ?? {};
 
         const latestPaymentStatus =
           String(
@@ -426,12 +430,13 @@ export async function POST(request: Request) {
               100,
 
             paidAt:
-              serverTimestamp(),
+            FieldValue.serverTimestamp(),
 
             updatedAt:
-              serverTimestamp(),
+              FieldValue.serverTimestamp(),
           }
         );
+        setNotification(transaction, db, { recipientUid: user.uid, recipientRole: "customer", title: "Payment successful", message: "Your Velora ride payment was completed successfully.", type: "payment_success", eventKey: `booking:${bookingDocumentId}:payment_success`, actionUrl: "/dashboard", metadata: { bookingDocumentId, paymentId: razorpayPaymentId }, source: "razorpay" });
       }
     );
 
@@ -453,16 +458,17 @@ export async function POST(request: Request) {
       "Razorpay payment verification failed:",
       error
     );
+    const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
 
     return NextResponse.json(
       {
         message:
-          error instanceof Error
-            ? error.message
+          unauthenticated
+            ? "Please login again."
             : "Unable to verify payment.",
       },
       {
-        status: 500,
+        status: unauthenticated ? 401 : 500,
       }
     );
   }

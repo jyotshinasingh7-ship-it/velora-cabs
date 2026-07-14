@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import {
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import {
   AlertTriangle,
   Loader2,
   XCircle,
 } from "lucide-react";
 
-import { db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import {
   canCustomerCancelRide,
 } from "@/lib/ride/status";
@@ -60,31 +55,26 @@ export default function CancelRideButton({
     try {
       setLoading(true);
 
-      await updateDoc(
-        doc(db, "bookings", bookingId),
-        {
-          rideStatus: "cancelled",
+      const currentUser = auth.currentUser;
 
-          cancelledAt:
-            serverTimestamp(),
+      if (!currentUser) {
+        throw new Error("Please login again.");
+      }
 
-          cancellation: {
-            cancelledBy:
-              "customer",
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch("/api/rides/cancel", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bookingDocumentId: bookingId, reason }),
+      });
 
-            cancellationReason:
-              reason,
-
-            cancellationNotes:
-              "",
-
-            cancellationFeeApplied: 0,
-          },
-
-          updatedAt:
-            serverTimestamp(),
-        }
-      );
+      if (!response.ok) {
+        const result = (await response.json()) as { message?: string };
+        throw new Error(result.message ?? "Unable to cancel ride.");
+      }
 
       setShowDialog(false);
 
@@ -130,7 +120,7 @@ export default function CancelRideButton({
 
             <p className="mt-4 text-sm text-gray-400">
 
-              Please tell us why you're cancelling.
+              Please tell us why you&apos;re cancelling.
 
             </p>
 

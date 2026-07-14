@@ -1,0 +1,234 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function eligibleApplicant() {
+      return signedIn()
+        && (request.auth.token.email_verified == true
+          || request.auth.token.phone_number is string);
+    }
+
+    function unchangedReviewFields() {
+      return request.resource.data.reviewedBy == resource.data.reviewedBy
+        && request.resource.data.reviewedAt == resource.data.reviewedAt
+        && request.resource.data.reviewNotes == resource.data.reviewNotes
+        && request.resource.data.rejectionReason == resource.data.rejectionReason
+        && request.resource.data.changeRequests == resource.data.changeRequests
+        && request.resource.data.reviewHistory == resource.data.reviewHistory;
+    }
+
+    function ownsBooking(data) {
+      return signedIn()
+        && (data.customerId == request.auth.uid || data.userId == request.auth.uid);
+    }
+
+    function isBookingDriver(data) {
+      return signedIn()
+        && (data.driverId == request.auth.uid || data.requestedDriverId == request.auth.uid);
+    }
+
+    function validCustomerBookingCreate() {
+      return request.resource.data.customerId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.clientRequestId is string
+        && request.resource.data.bookingId is string
+        && request.resource.data.pickupPlaceId is string
+        && request.resource.data.pickupPlaceId.size() > 0
+        && request.resource.data.dropoffPlaceId is string
+        && request.resource.data.dropoffPlaceId.size() > 0
+        && request.resource.data.pickupPlaceId != request.resource.data.dropoffPlaceId
+        && request.resource.data.pickupLatitude is number
+        && request.resource.data.pickupLongitude is number
+        && request.resource.data.dropoffLatitude is number
+        && request.resource.data.dropoffLongitude is number
+        && request.resource.data.distanceMeters is number
+        && request.resource.data.distanceMeters > 0
+        && request.resource.data.durationSeconds is number
+        && request.resource.data.durationSeconds > 0
+        && request.resource.data.estimatedFare is number
+        && request.resource.data.estimatedFare > 0
+        && request.resource.data.finalFare == request.resource.data.estimatedFare
+        && request.resource.data.fareBreakdown.estimatedFare == request.resource.data.estimatedFare
+        && request.resource.data.fareType == 'estimate'
+        && request.resource.data.bookingMode in ['now', 'schedule']
+        && request.resource.data.serviceType in ['local', 'airport', 'outstation']
+        && request.resource.data.rideStatus == 'Pending'
+        && request.resource.data.status == 'Pending'
+        && request.resource.data.paymentStatus == 'Pending'
+        && request.resource.data.driverId == ''
+        && request.resource.data.driverName == ''
+        && request.resource.data.requestedDriverId == ''
+        && request.resource.data.source == 'web'
+        && request.resource.data.platform == 'web'
+        && (request.resource.data.bookingMode == 'now'
+          || request.resource.data.scheduledAt is timestamp);
+    }
+
+    match /users/{userId} {
+      allow read: if ownsUser(userId) || isAdmin();
+      allow create: if ownsUser(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'customer';
+      allow update: if isAdmin() || (ownsUser(userId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.uid == resource.data.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if ownsUser(driverId) || isAdmin();
+      allow create: if false;
+      allow update: if isAdmin() || (ownsUser(driverId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'isOnline', 'lastSeenAt', 'updatedAt',
+          'currentLatitude', 'currentLongitude', 'latitude', 'longitude',
+          'incomingRideId', 'activeRideId', 'rideRequestStatus',
+          'rideRequestExpiresAt', 'rideRequestedAt'
+        ]));
+      allow delete: if isAdmin();
+    }
+
+    match /driverApplications/{applicationId} {
+      allow create: if eligibleApplicant()
+        && applicationId == request.auth.uid
+        && request.resource.data.applicantUid == request.auth.uid
+        && request.resource.data.applicationId == request.auth.uid
+        && request.resource.data.accountType == 'driver'
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.reviewedBy == ''
+        && request.resource.data.reviewedAt == null
+        && request.resource.data.reviewNotes == ''
+        && request.resource.data.rejectionReason == ''
+        && request.resource.data.changeRequests.size() == 0;
+      allow read: if (signedIn() && resource.data.applicantUid == request.auth.uid) || isAdmin();
+      allow update: if eligibleApplicant()
+        && resource.data.applicantUid == request.auth.uid
+        && request.resource.data.applicantUid == resource.data.applicantUid
+        && request.resource.data.applicationId == resource.data.applicationId
+        && resource.data.status == 'needs_changes'
+        && request.resource.data.status == 'submitted'
+        && unchangedReviewFields()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'legalName', 'email', 'phoneNumber', 'dateOfBirth', 'address', 'city',
+          'state', 'pincode', 'licenceNumber', 'licenceExpiry',
+          'drivingExperienceYears', 'preferredServiceArea', 'emergencyContact',
+          'languages', 'availability', 'vehicleOwnershipType',
+          'declarationsAccepted', 'consentAccepted', 'status', 'submittedAt', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /vehicleOwnerApplications/{applicationId} {
+      allow create: if eligibleApplicant()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.applicationId == applicationId
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.reviewedBy == ''
+        && request.resource.data.reviewedAt == null
+        && request.resource.data.reviewNotes == ''
+        && request.resource.data.rejectionReason == ''
+        && request.resource.data.changeRequests.size() == 0;
+      allow read: if (signedIn() && resource.data.ownerUid == request.auth.uid) || isAdmin();
+      allow update: if eligibleApplicant()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.applicationId == resource.data.applicationId
+        && request.resource.data.registrationNumber == resource.data.registrationNumber
+        && resource.data.status == 'needs_changes'
+        && request.resource.data.status == 'submitted'
+        && unchangedReviewFields()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'ownerName', 'ownerEmail', 'ownerPhone', 'ownerType', 'businessName',
+          'gstNumber', 'address', 'city', 'state', 'pincode',
+          'preferredOperatingArea', 'vehicleMake', 'vehicleModel',
+          'manufacturingYear', 'vehicleType', 'seats', 'fuelType',
+          'serviceCategory', 'permitStatus', 'permitExpiry', 'insuranceExpiry',
+          'fitnessExpiry', 'pollutionExpiry', 'commercialRegistrationConfirmed',
+          'driverAttached', 'attachedDriver', 'acAvailable', 'luggageCapacity',
+          'vehicleColor', 'notes', 'status', 'submittedAt', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /bookings/{bookingId} {
+      allow create: if signedIn()
+        && validCustomerBookingCreate();
+      allow read: if ownsBooking(resource.data) || isBookingDriver(resource.data) || isAdmin();
+      allow update: if isAdmin() || (
+        signedIn()
+        && resource.data.requestedDriverId == request.auth.uid
+        && request.resource.data.driverId == request.auth.uid
+        && request.resource.data.rideStatus == 'driver_assigned'
+        && request.resource.data.status == 'driver_assigned'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'rideStatus', 'status', 'driverId', 'driverName', 'driverPhone',
+          'driverPhotoURL', 'driverRating', 'driverTotalRides', 'vehicleId',
+          'vehicleName', 'vehicleModel', 'vehicleNumber', 'vehicleColor',
+          'vehicleSeats', 'driverDistanceToPickupKm', 'pickupEtaMinutes',
+          'acceptedAt', 'requestedDriverId', 'driverRequestExpiresAt', 'updatedAt'
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /corporate_requests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /customTourRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.customerId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /rideRatings/{ratingId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /rideOtpSecrets/{secretId} {
+      allow read, write: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn()
+        && (resource.data.recipientUid == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /notificationCampaigns/{campaignId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

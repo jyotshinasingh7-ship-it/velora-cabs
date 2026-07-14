@@ -68,7 +68,7 @@ export default function DriverWalletCard({
             />
 
             <span className="text-sm text-white/60">
-              Today's Earnings
+              Today&apos;s Earnings
             </span>
 
           </div>

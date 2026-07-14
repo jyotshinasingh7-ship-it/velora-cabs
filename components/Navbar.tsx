@@ -8,15 +8,14 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
   BriefcaseBusiness,
   Building2,
-  CarFront,
   ChevronDown,
   CircleUserRound,
-  ClipboardCheck,
   LogOut,
   Menu,
   Phone,
   UserPlus,
-  UserRoundCheck,
+  CarFront,
+  Building2 as BuildingIcon,
   X,
 } from "lucide-react";
 
@@ -34,21 +33,15 @@ const mainLinks = [
 const earnLinks = [
   {
     label: "Drive With Velora",
-    description: "Join as a professional driver and start earning",
-    href: "/earn/driver",
-    icon: UserRoundCheck,
-  },
-  {
-    label: "Attach Your Car",
-    description: "Add your vehicle to the Velora network",
-    href: "/earn/vehicle",
+    description: "Create an account and register your driver interest",
+    href: "/driver/onboarding",
     icon: CarFront,
   },
   {
-    label: "Application Status",
-    description: "Track your driver or vehicle application",
-    href: "/earn/status",
-    icon: ClipboardCheck,
+    label: "Attach Your Car",
+    description: "Create a fleet-partner account and register interest",
+    href: "/fleet/onboarding",
+    icon: BuildingIcon,
   },
 ];
 
@@ -159,7 +152,7 @@ export default function Navbar() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const earnSectionActive = pathname.startsWith("/earn");
+  const earnSectionActive = pathname.startsWith("/driver");
 
   return (
     <header
@@ -253,7 +246,7 @@ export default function Navbar() {
               >
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14]/98 p-2 shadow-[0_28px_80px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
                   <Link
-                    href="/earn"
+                    href="/driver/login"
                     onClick={closeMenus}
                     className="mb-1 flex items-center gap-3 rounded-xl border border-amber-400/10 bg-amber-400/[0.06] px-4 py-3 transition hover:bg-amber-400/10"
                   >
@@ -263,11 +256,11 @@ export default function Navbar() {
 
                     <span>
                       <span className="block text-sm font-semibold text-white">
-                        Start Earning With Velora
+                        Velora Driver Portal
                       </span>
 
                       <span className="mt-1 block text-xs text-white/45">
-                        Choose the earning option that suits you
+                        Secure access for verified drivers
                       </span>
                     </span>
                   </Link>
@@ -429,12 +422,12 @@ export default function Navbar() {
                 <div className="overflow-hidden">
                   <div className="space-y-1 border-t border-white/10 p-2">
                     <Link
-                      href="/earn"
+                      href="/driver/login"
                       onClick={closeMenus}
                       className="flex items-center gap-3 rounded-xl bg-amber-400/[0.07] px-3 py-3 text-sm font-semibold text-amber-300"
                     >
                       <BriefcaseBusiness size={18} />
-                      Earning Overview
+                      Driver Login
                     </Link>
 
                     {earnLinks.map((item) => {

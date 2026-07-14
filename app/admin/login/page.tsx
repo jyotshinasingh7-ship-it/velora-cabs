@@ -17,6 +17,17 @@ export default function AdminLoginPage() {
   const router = useRouter();
 
   async function redirectAdmin(uid: string) {
+    const currentUser = auth.currentUser;
+    const usesPassword = currentUser?.providerData.some(
+      (provider) => provider.providerId === "password"
+    );
+
+    if (currentUser && usesPassword && !currentUser.emailVerified) {
+      alert("Verify your email before opening the admin portal.");
+      await auth.signOut();
+      return;
+    }
+
     const userRef = doc(db, "users", uid);
     const userSnap = await getDoc(userRef);
 

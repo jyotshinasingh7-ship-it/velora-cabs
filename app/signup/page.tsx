@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -54,14 +54,8 @@ const accountOptions = [
 ];
 
 function getNextPath(accountType: AccountType) {
-  if (accountType === "driver") {
-    return "/earn/driver";
-  }
-
-  if (accountType === "partner") {
-    return "/earn/vehicle";
-  }
-
+  if (accountType === "driver") return "/driver/onboarding";
+  if (accountType === "partner") return "/fleet/onboarding";
   return "/dashboard";
 }
 
@@ -92,6 +86,14 @@ export default function SignupPage() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const requestedType = new URLSearchParams(window.location.search).get("accountType");
+
+    if (requestedType === "driver" || requestedType === "partner" || requestedType === "customer") {
+      setAccountType(requestedType);
+    }
+  }, []);
 
   const saveSignupIntent = async (
     uid: string,

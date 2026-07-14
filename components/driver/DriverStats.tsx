@@ -10,7 +10,7 @@ export default function DriverStats({
 
       <div className="rounded-2xl bg-green-600 p-6">
         <h2 className="text-sm">
-          Today's Earnings
+          Today&apos;s Earnings
         </h2>
 
         <p className="mt-3 text-3xl font-bold">
@@ -20,7 +20,7 @@ export default function DriverStats({
 
       <div className="rounded-2xl bg-cyan-600 p-6">
         <h2 className="text-sm">
-          Today's Trips
+          Today&apos;s Trips
         </h2>
 
         <p className="mt-3 text-3xl font-bold">

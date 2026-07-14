@@ -17,7 +17,7 @@ export default function SearchBar({
     <div className="relative mb-8">
 
       <Search
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400"
         size={20}
       />
 
@@ -27,7 +27,7 @@ export default function SearchBar({
           onChange(e.target.value)
         }
         placeholder={placeholder}
-        className="w-full rounded-xl border border-white/10 bg-slate-900 py-4 pl-12 pr-4 text-white outline-none transition focus:border-cyan-500"
+        className="w-full rounded-2xl border border-white/10 bg-white/[0.035] py-4 pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-amber-400/50"
       />
 
     </div>

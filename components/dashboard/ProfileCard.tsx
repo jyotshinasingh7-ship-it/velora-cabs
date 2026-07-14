@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
   BadgeCheck,
@@ -35,7 +35,6 @@ const defaultProfile: ProfileData = {
 };
 
 export default function ProfileCard() {
-  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] =
     useState<ProfileData>(defaultProfile);
   const [loading, setLoading] = useState(true);
@@ -45,12 +44,9 @@ export default function ProfileCard() {
       auth,
       async (currentUser) => {
         if (!currentUser) {
-          setUser(null);
           setLoading(false);
           return;
         }
-
-        setUser(currentUser);
 
         try {
           const profileReference = doc(

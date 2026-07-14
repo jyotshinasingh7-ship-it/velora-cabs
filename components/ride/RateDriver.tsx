@@ -2,18 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
-  doc,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-import {
   CheckCircle2,
   Loader2,
   MessageSquareText,
   Star,
 } from "lucide-react";
 
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 
 interface RateDriverProps {
   bookingDocumentId: string;
@@ -146,189 +141,26 @@ export default function RateDriver({
     try {
       setLoading(true);
 
-      const bookingReference = doc(
-        db,
-        "bookings",
-        bookingDocumentId
-      );
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch("/api/rides/rating", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingDocumentId,
+          bookingId,
+          driverId,
+          driverName,
+          rating,
+          review: review.trim(),
+          quickFeedback: selectedFeedback,
+        }),
+      });
 
-      const driverReference = doc(
-        db,
-        "drivers",
-        driverId
-      );
-
-      await runTransaction(
-        db,
-        async (transaction) => {
-          const bookingSnapshot =
-            await transaction.get(
-              bookingReference
-            );
-
-          if (!bookingSnapshot.exists()) {
-            throw new Error(
-              "Booking not found."
-            );
-          }
-
-          const bookingData =
-            bookingSnapshot.data();
-
-          if (
-            bookingData.customerId !==
-              currentUser.uid &&
-            bookingData.userId !==
-              currentUser.uid
-          ) {
-            throw new Error(
-              "You cannot rate this booking."
-            );
-          }
-
-          const rideStatus = String(
-            bookingData.rideStatus ??
-              bookingData.status ??
-              ""
-          ).toLowerCase();
-
-          if (rideStatus !== "completed") {
-            throw new Error(
-              "You can rate the driver only after ride completion."
-            );
-          }
-
-          const previousRating =
-            Number(
-              bookingData.rating
-                ?.customerRating ?? 0
-            ) || 0;
-
-          if (previousRating > 0) {
-            throw new Error(
-              "This ride has already been rated."
-            );
-          }
-
-          const driverSnapshot =
-            await transaction.get(
-              driverReference
-            );
-
-          if (!driverSnapshot.exists()) {
-            throw new Error(
-              "Driver profile not found."
-            );
-          }
-
-          const driverData =
-            driverSnapshot.data();
-
-          const oldRating =
-            Number(
-              driverData.rating ??
-                driverData.averageRating ??
-                0
-            ) || 0;
-
-          const oldRatingCount =
-            Number(
-              driverData.ratingCount ?? 0
-            ) || 0;
-
-          const newRatingCount =
-            oldRatingCount + 1;
-
-          const newAverageRating =
-            oldRatingCount === 0
-              ? rating
-              : (oldRating *
-                    oldRatingCount +
-                  rating) /
-                newRatingCount;
-
-          transaction.update(
-            bookingReference,
-            {
-              "rating.customerRating":
-                rating,
-
-              "rating.customerReview":
-                review.trim(),
-
-              "rating.quickFeedback":
-                selectedFeedback,
-
-              "rating.ratedAt":
-                serverTimestamp(),
-
-              customerRating: rating,
-
-              customerReview:
-                review.trim(),
-
-              ratedAt:
-                serverTimestamp(),
-
-              updatedAt:
-                serverTimestamp(),
-            }
-          );
-
-          transaction.update(
-            driverReference,
-            {
-              rating: Number(
-                newAverageRating.toFixed(2)
-              ),
-
-              averageRating: Number(
-                newAverageRating.toFixed(2)
-              ),
-
-              ratingCount:
-                newRatingCount,
-
-              updatedAt:
-                serverTimestamp(),
-            }
-          );
-
-          const ratingReference = doc(
-            db,
-            "rideRatings",
-            bookingDocumentId
-          );
-
-          transaction.set(
-            ratingReference,
-            {
-              bookingDocumentId,
-              bookingId,
-
-              customerId:
-                currentUser.uid,
-
-              driverId,
-              driverName,
-
-              rating,
-
-              review:
-                review.trim(),
-
-              quickFeedback:
-                selectedFeedback,
-
-              createdAt:
-                serverTimestamp(),
-
-              updatedAt:
-                serverTimestamp(),
-            }
-          );
-        }
-      );
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message ?? "Unable to submit rating.");
 
       setSuccess(
         "Thank you! Your rating has been submitted."

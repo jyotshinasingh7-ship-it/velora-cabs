@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 
 import {
   doc,
+  getDoc,
   onSnapshot,
   runTransaction,
   serverTimestamp,
@@ -41,11 +42,7 @@ import DriverTopbar from "@/components/driver/DriverTopbar";
 import DriverAnalytics from "@/components/driver/DriverAnalytics";
 import DriverWalletCard from "@/components/driver/DriverWalletCard";
 import LiveRideMap from "@/components/driver/LiveRideMap";
-
-import {
-  dispatchRide,
-  rejectDriverRequest,
-} from "@/lib/driver/dispatch";
+import RideAlertControls, { type RideAlertHandle } from "@/components/driver/RideAlertControls";
 
 interface Coordinates {
   latitude: number;
@@ -188,7 +185,8 @@ function normalizeDriverProfile(
       data.status === "online",
 
     isApproved:
-      data.isApproved !== false,
+      data.isApproved === true &&
+      data.isActive !== false,
 
     rating: getNumber(
       data.rating ??
@@ -490,8 +488,14 @@ export default function DriverDashboardPage() {
   const [error, setError] =
     useState("");
 
+  const [rideOtp, setRideOtp] =
+    useState("");
+
   const timeoutHandledRef =
     useRef(false);
+
+  const rideAlertRef =
+    useRef<RideAlertHandle>(null);
 
   useEffect(() => {
     let unsubscribeDriver:
@@ -501,7 +505,7 @@ export default function DriverDashboardPage() {
     const unsubscribeAuth =
       onAuthStateChanged(
         auth,
-        (user) => {
+        async (user) => {
           unsubscribeDriver?.();
 
           if (!user) {
@@ -513,6 +517,12 @@ export default function DriverDashboardPage() {
 
           setCurrentUser(user);
           setError("");
+
+          const userSnapshot = await getDoc(doc(db, "users", user.uid));
+          if (!userSnapshot.exists() || userSnapshot.data().role !== "driver") {
+            router.replace("/driver/onboarding");
+            return;
+          }
 
           const driverReference = doc(
             db,
@@ -537,6 +547,11 @@ export default function DriverDashboardPage() {
                   snapshot.id,
                   snapshot.data()
                 );
+
+              if (!profile.isApproved) {
+                router.replace("/driver/onboarding");
+                return;
+              }
 
               setDriverProfile(profile);
               setLoading(false);
@@ -789,6 +804,44 @@ export default function DriverDashboardPage() {
       const nextOnlineState =
         !isOnline;
 
+      if (!nextOnlineState) rideAlertRef.current?.stop();
+
+      let coordinates: Coordinates | null = null;
+
+      if (nextOnlineState) {
+        if (!("geolocation" in navigator)) {
+          throw new Error(
+            "Location is not supported on this device."
+          );
+        }
+
+        coordinates =
+          await new Promise<Coordinates>(
+            (resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                (position) =>
+                  resolve({
+                    latitude:
+                      position.coords.latitude,
+                    longitude:
+                      position.coords.longitude,
+                  }),
+                () =>
+                  reject(
+                    new Error(
+                      "Location permission is required to receive nearby rides."
+                    )
+                  ),
+                {
+                  enableHighAccuracy: true,
+                  timeout: 15_000,
+                  maximumAge: 30_000,
+                }
+              );
+            }
+          );
+      }
+
       await updateDoc(
         doc(
           db,
@@ -802,6 +855,19 @@ export default function DriverDashboardPage() {
 
           isOnline: nextOnlineState,
 
+          ...(coordinates
+            ? {
+                currentLatitude:
+                  coordinates.latitude,
+                currentLongitude:
+                  coordinates.longitude,
+                latitude:
+                  coordinates.latitude,
+                longitude:
+                  coordinates.longitude,
+              }
+            : {}),
+
           lastSeenAt:
             serverTimestamp(),
 
@@ -809,6 +875,27 @@ export default function DriverDashboardPage() {
             serverTimestamp(),
         }
       );
+
+      if (nextOnlineState) {
+        const idToken =
+          await currentUser.getIdToken();
+
+        const response = await fetch(
+          "/api/rides/driver-online",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Online status saved, but pending ride search failed."
+          );
+        }
+      }
     } catch (toggleError) {
       console.error(
         "Online status update failed:",
@@ -816,7 +903,9 @@ export default function DriverDashboardPage() {
       );
 
       setError(
-        "Unable to change online status."
+        toggleError instanceof Error
+          ? toggleError.message
+          : "Unable to change online status."
       );
     } finally {
       setActionLoading(null);
@@ -833,6 +922,7 @@ export default function DriverDashboardPage() {
     }
 
     try {
+      rideAlertRef.current?.stop();
       setActionLoading("accept");
       setError("");
 
@@ -1001,6 +1091,12 @@ export default function DriverDashboardPage() {
           );
         }
       );
+      const notificationResponse = await fetch("/api/notifications/events", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${await currentUser.getIdToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "driver_assigned", documentId: incomingRide.id }),
+      });
+      if (!notificationResponse.ok) console.error("Driver-assigned notification could not be created.");
     } catch (acceptError) {
       console.error(
         "Ride accept failed:",
@@ -1027,16 +1123,41 @@ export default function DriverDashboardPage() {
     }
 
     try {
+      rideAlertRef.current?.stop();
       setActionLoading("reject");
       setError("");
 
-      await rejectDriverRequest({
-        bookingDocumentId:
-          incomingRide.id,
+      const idToken =
+        await currentUser.getIdToken();
 
-        driverId:
-          currentUser.uid,
-      });
+      const response = await fetch(
+        "/api/rides/reject",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            bookingDocumentId:
+              incomingRide.id,
+            timedOut,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const result =
+          (await response.json()) as {
+            message?: string;
+          };
+
+        throw new Error(
+          result.message ??
+            "Unable to reject ride."
+        );
+      }
     } catch (rejectError) {
       console.error(
         "Ride rejection failed:",
@@ -1051,16 +1172,6 @@ export default function DriverDashboardPage() {
             : "Unable to reject ride."
       );
 
-      try {
-        await dispatchRide(
-          incomingRide.id
-        );
-      } catch (dispatchError) {
-        console.error(
-          "Next driver dispatch failed:",
-          dispatchError
-        );
-      }
     } finally {
       setActionLoading(null);
     }
@@ -1160,6 +1271,82 @@ export default function DriverDashboardPage() {
         arrivalError instanceof Error
           ? arrivalError.message
           : "Unable to mark driver arrival."
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleSecureRideAction(
+    action:
+      | "arrived"
+      | "request_end"
+      | "verify_start"
+      | "verify_end"
+  ) {
+    if (!currentUser || !activeRide) return;
+
+    const requiresOtp =
+      action === "verify_start" ||
+      action === "verify_end";
+
+    if (
+      requiresOtp &&
+      !/^\d{6}$/.test(rideOtp)
+    ) {
+      setError("Enter the 6-digit customer OTP.");
+      return;
+    }
+
+    try {
+      setActionLoading(
+        action === "arrived"
+          ? "arrived"
+          : action === "verify_start"
+            ? "start"
+            : "complete"
+      );
+      setError("");
+
+      const idToken =
+        await currentUser.getIdToken();
+      const response = await fetch(
+        "/api/rides/otp",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            bookingDocumentId:
+              activeRide.id,
+            action,
+            otp: requiresOtp
+              ? rideOtp
+              : undefined,
+          }),
+        }
+      );
+      const result =
+        (await response.json()) as {
+          message?: string;
+        };
+
+      if (!response.ok) {
+        throw new Error(
+          result.message ??
+            "Unable to update ride."
+        );
+      }
+
+      setRideOtp("");
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to update ride."
       );
     } finally {
       setActionLoading(null);
@@ -1389,6 +1576,7 @@ export default function DriverDashboardPage() {
 
   async function handleLogout() {
     try {
+      rideAlertRef.current?.stop();
       if (
         currentUser &&
         driverProfile &&
@@ -1555,6 +1743,12 @@ export default function DriverDashboardPage() {
               }
             />
 
+            <RideAlertControls
+              ref={rideAlertRef}
+              rideId={incomingRide?.id ?? ""}
+              shouldAlert={Boolean(isOnline && incomingRide && !activeRide && secondsRemaining > 0)}
+            />
+
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-4 text-sm text-red-200">
                 <AlertCircle
@@ -1623,8 +1817,11 @@ export default function DriverDashboardPage() {
                         </h2>
                       </div>
 
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-amber-400/30 bg-black/30 text-2xl font-extrabold text-amber-400">
-                        {secondsRemaining}
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-amber-400/30 bg-black/30 text-2xl font-extrabold text-amber-400" aria-label={`${secondsRemaining} seconds remaining`}>
+                          {secondsRemaining}
+                        </div>
+                        <button type="button" aria-label="Close and reject ride request" onClick={() => { rideAlertRef.current?.stop(); void handleRejectRide(false); }} className="rounded-xl border border-white/10 p-2 text-white/45 transition hover:border-red-400/30 hover:text-red-300"><XCircle size={20} /></button>
                       </div>
                     </div>
 
@@ -1917,7 +2114,10 @@ export default function DriverDashboardPage() {
                     <button
                       type="button"
                       onClick={
-                        handleDriverArrived
+                        () =>
+                          handleSecureRideAction(
+                            "arrived"
+                          )
                       }
                       disabled={
                         actionLoading !== null
@@ -1942,7 +2142,11 @@ export default function DriverDashboardPage() {
                     "start_otp_pending" && (
                     <button
                       type="button"
-                      onClick={handleStartRide}
+                      onClick={() =>
+                        handleSecureRideAction(
+                          "verify_start"
+                        )
+                      }
                       disabled={
                         actionLoading !== null
                       }
@@ -1969,7 +2173,10 @@ export default function DriverDashboardPage() {
                     <button
                       type="button"
                       onClick={
-                        handleCompleteRide
+                        () =>
+                          handleSecureRideAction(
+                            "request_end"
+                          )
                       }
                       disabled={
                         actionLoading !== null
@@ -1989,6 +2196,46 @@ export default function DriverDashboardPage() {
                       )}
 
                       Complete Ride
+                    </button>
+                  )}
+
+                  {(activeRide.rideStatus ===
+                    "start_otp_pending" ||
+                    activeRide.rideStatus ===
+                      "stop_otp_pending") && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={rideOtp}
+                      onChange={(event) =>
+                        setRideOtp(
+                          event.target.value.replace(
+                            /\D/g,
+                            ""
+                          )
+                        )
+                      }
+                      placeholder="Enter customer OTP"
+                      className="rounded-xl border border-white/10 bg-black/30 px-5 py-4 text-center text-lg font-bold tracking-[0.25em] text-white outline-none focus:border-amber-400/60"
+                    />
+                  )}
+
+                  {activeRide.rideStatus ===
+                    "stop_otp_pending" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSecureRideAction(
+                          "verify_end"
+                        )
+                      }
+                      disabled={
+                        actionLoading !== null
+                      }
+                      className="flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-bold text-white transition hover:bg-cyan-600 disabled:opacity-50"
+                    >
+                      Verify End OTP
                     </button>
                   )}
                 </div>

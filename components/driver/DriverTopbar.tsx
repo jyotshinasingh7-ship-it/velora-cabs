@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Power, Wallet, Star } from "lucide-react";
+import { Power, Wallet, Star } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 
 interface DriverTopbarProps {
   online: boolean;
@@ -74,11 +75,7 @@ export default function DriverTopbar({
           </div>
         </div>
 
-        <button className="relative rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10">
-          <Bell size={20} />
-
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500"></span>
-        </button>
+        <NotificationBell />
 
         <button
           onClick={onToggleOnline}

@@ -18,6 +18,17 @@ export default function DriverLoginPage() {
   const router = useRouter();
 
   async function redirectDriver(uid: string) {
+    const currentUser = auth.currentUser;
+    const usesPassword = currentUser?.providerData.some(
+      (provider) => provider.providerId === "password"
+    );
+
+    if (currentUser && usesPassword && !currentUser.emailVerified) {
+      alert("Verify your email before opening the driver portal.");
+      await signOut(auth);
+      return;
+    }
+
     const userRef = doc(db, "users", uid);
     const userSnap = await getDoc(userRef);
 
@@ -30,9 +41,12 @@ export default function DriverLoginPage() {
     const role = userSnap.data().role;
 
     if (role !== "driver") {
-      alert("Access Denied");
-      await signOut(auth);
-      router.push("/login");
+      const intent = userSnap.data().accountType ?? userSnap.data().onboardingIntent;
+      if (intent === "driver") {
+        router.push("/driver/onboarding");
+        return;
+      }
+      alert("Access Denied"); await signOut(auth); router.push("/login");
       return;
     }
 

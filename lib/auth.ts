@@ -33,6 +33,8 @@ export interface AppUserProfile {
   provider: AuthProviderType;
   emailVerified: boolean;
   isActive: boolean;
+  accountType?: "customer" | "driver" | "partner";
+  onboardingIntent?: "customer" | "driver" | "partner";
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -235,6 +237,14 @@ export async function getRedirectPath(uid: string) {
 
   if (profile.role === "driver") {
     return "/driver/dashboard";
+  }
+
+  if (profile.accountType === "driver" || (profile as AppUserProfile & { onboardingIntent?: string }).onboardingIntent === "driver") {
+    return "/driver/onboarding";
+  }
+
+  if (profile.accountType === "partner" || (profile as AppUserProfile & { onboardingIntent?: string }).onboardingIntent === "partner") {
+    return "/fleet/onboarding";
   }
 
   return "/dashboard";

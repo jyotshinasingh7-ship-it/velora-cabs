@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  doc,
-  getDoc,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-
-import { db } from "@/lib/firebase";
+import { FieldValue } from "firebase-admin/firestore";
+import { getAdminDb } from "@/lib/server/firebaseAdmin";
+import { requireUser } from "@/lib/server/requireUser";
+import { calculateAuthoritativePayment } from "@/lib/server/paymentAmount";
 
 export const runtime = "nodejs";
 
@@ -17,6 +13,7 @@ interface CashPaymentRequest {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireUser(request);
     const body =
       (await request.json()) as CashPaymentRequest;
 
@@ -37,16 +34,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const bookingReference = doc(
-      db,
-      "bookings",
-      bookingDocumentId
-    );
+    const bookingReference = getAdminDb()
+      .collection("bookings")
+      .doc(bookingDocumentId);
+    const bookingSnapshot = await bookingReference.get();
 
-    const bookingSnapshot =
-      await getDoc(bookingReference);
-
-    if (!bookingSnapshot.exists()) {
+    if (!bookingSnapshot.exists) {
       return NextResponse.json(
         {
           message: "Booking not found.",
@@ -57,7 +50,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const bookingData = bookingSnapshot.data();
+    const bookingData = bookingSnapshot.data() ?? {};
+
+    if (
+      bookingData?.customerId !== user.uid &&
+      bookingData?.userId !== user.uid
+    ) {
+      return NextResponse.json({ message: "You cannot update this booking." }, { status: 403 });
+    }
 
     if (bookingData.bookingId !== bookingId) {
       return NextResponse.json(
@@ -70,12 +70,28 @@ export async function POST(request: Request) {
       );
     }
 
-    await updateDoc(bookingReference, {
+    const rideStatus = String(bookingData.rideStatus ?? bookingData.status ?? "").toLowerCase();
+    if (!["stop_otp_pending", "completed"].includes(rideStatus)) {
+      return NextResponse.json({ message: "Payment is not available at this ride stage." }, { status: 409 });
+    }
+
+    if (String(bookingData.paymentStatus ?? "").toLowerCase() === "paid") {
+      return NextResponse.json({ message: "This booking has already been paid." }, { status: 409 });
+    }
+
+    const authoritative = await calculateAuthoritativePayment(bookingData);
+
+    await bookingReference.update({
       paymentMethod: "cash",
       paymentStatus: "pending",
+      payableFare: authoritative.payableFare,
+      payableFareBasis: "server_directions_and_pricing",
+      payableFareBreakdown: authoritative.fareBreakdown,
+      paymentRouteDistanceMeters: authoritative.routeDistanceMeters,
+      paymentRouteDurationSeconds: authoritative.routeDurationSeconds,
       cashPaymentSelectedAt:
-        serverTimestamp(),
-      updatedAt: serverTimestamp(),
+        FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json(
@@ -90,14 +106,17 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error(error);
+    const message = error instanceof Error ? error.message : "";
+    const unauthenticated = message === "UNAUTHENTICATED";
+    const setupMissing = message === "PAYMENT_ROUTE_VERIFICATION_NOT_CONFIGURED";
 
     return NextResponse.json(
       {
         message:
-          "Unable to update cash payment.",
+          unauthenticated ? "Please login again." : setupMissing ? "Payment calculation is temporarily unavailable." : "Unable to update cash payment.",
       },
       {
-        status: 500,
+          status: unauthenticated ? 401 : setupMissing ? 503 : 500,
       }
     );
   }

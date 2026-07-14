@@ -1,5 +1,11 @@
 type Props = {
-  ride: any;
+  ride: {
+    id: string;
+    pickup: string;
+    dropoff: string;
+    status?: string;
+    fare?: number;
+  };
   updateStatus: (
     id: string,
     status: string
