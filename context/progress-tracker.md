@@ -1,7 +1,7 @@
 # Velora Progress Tracker
 
 - Last verified: 2026-07-15
-- Current branch: `main` (clean and synchronized with `origin/main` before this documentation task)
+- Current branch: `main`; Unit 001 implementation commit `3166ffb398657045aef4e7ae00d041031ab980ef` pushed to `origin/main`
 - Current phase: client testing / runtime hardening
 - Current goal: complete Unit 001 browser verification after the dispatch server fix
 - Current release status: deployed for client testing; not production-ready by the Bible definition
@@ -13,6 +13,8 @@
 - Anonymous HTTP 200 smoke checks passed for home, login, booking, driver/admin login, onboarding, admin notifications, and legal pages.
 - Firestore rules compiled and deployed to Firebase project `velora-cabs` on 2026-07-14.
 - Git commit `13a19bb` was pushed to `origin/main` before this Bible task.
+- Unit 001 commit `3166ffb398657045aef4e7ae00d041031ab980ef` was deployed to Vercel production on 2026-07-15 as deployment `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS`; the production alias points to `https://velora-cabs.vercel.app`.
+- Production anonymous smoke checks passed for `/`, `/login`, `/book`, `/driver/login`, and `/admin/login`; unauthenticated `POST /api/rides/dispatch` returned safe JSON `401` with `{"message":"Please login again."}`.
 
 ## Implemented but not fully tested
 
@@ -34,6 +36,7 @@
 
 - Unit 001 root cause proved: protected Vercel APIs crashed while loading Firebase Admin 14.1.0 because `jwks-rsa` attempted CommonJS `require()` of ESM-only `jose` (`ERR_REQUIRE_ESM`).
 - Fix implemented and preview integration verified with TEST ONLY records using Firebase Admin 13.10.0.
+- The fixed server build is now deployed at the production alias; the former Firebase Admin module-load HTML 500 is no longer reproduced by the unauthenticated dispatch smoke test.
 - A second proven recovery defect was fixed: one malformed legacy pending booking previously aborted the entire driver-online scan.
 - Remaining verification: visible driver dashboard popup/countdown/sound in an authenticated browser. Unit 001 remains active until this is witnessed.
 
@@ -52,7 +55,7 @@
 
 ## Production blockers
 
-- Dispatch bug unresolved.
+- Unit 001 server fix is deployed, but authenticated production popup/countdown/sound and dashboard-transition verification remains outstanding.
 - Authenticated production journeys and real Maps/payment/lifecycle behavior not fully tested.
 - No Razorpay webhook/reconciliation.
 - Storage/document compliance flow absent if documents are a launch requirement.
@@ -82,7 +85,7 @@ Line numbers may move; confirm before work.
 ## Current environment/deployment state
 
 - Firebase project: `velora-cabs`; Firestore rules deployed. Storage not configured.
-- Vercel project linked and production deployed at `https://velora-cabs.vercel.app`.
+- Vercel project linked and Unit 001 production deployment `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS` aliased to `https://velora-cabs.vercel.app` on 2026-07-15.
 - Required Vercel variable names are documented in architecture/DEPLOYMENT; secret values are never documented.
 - Emulator configuration exists for Auth/Firestore/UI; no executed rules tests recorded.
 - Test seed script exists with dry-run and cleanup safeguards; no live seed result recorded.
@@ -95,6 +98,7 @@ Line numbers may move; confirm before work.
 - 2026-07-14: `git diff --check` passed.
 - 2026-07-15 Bible task: `npx tsc --noEmit` passed; `npm run lint` passed with the same four warnings; `npm run build` passed and generated 43 static pages; `git diff --check` passed.
 - 2026-07-15 Unit 001: typecheck passed; lint passed with the same four warnings; local production build passed with 43 static pages; Vercel preview build passed; `git diff --check` passed. `npm audit --omit=dev` reported 10 moderate, 0 high, and 0 critical vulnerabilities.
+- 2026-07-15 Unit 001 production deployment: typecheck passed; lint passed with the same four warnings; local and Vercel production builds passed with 43 static pages; `git diff --check` passed. Production alias and anonymous route/API smoke checks passed.
 
 ## Active specs
 
@@ -109,3 +113,4 @@ Unit 001: instrument and trace booking submission through server dispatch, drive
 
 - 2026-07-15 — Project Bible — Created governance/context/spec documentation from repository audit. Files affected: `AGENTS.md`, `context/`, `specs/`. Validation: typecheck passed; lint passed with four pre-existing warnings; production build passed; diff check and documentation link/secret checks passed. Remaining: Unit 001 dispatch trace and Unit 002 owner decisions.
 - 2026-07-15 — Unit 001 dispatch delivery — Proved the Vercel Firebase Admin module-load crash, pinned Admin 13.10.0, hardened driver eligibility, added safe development diagnostics, isolated malformed pending bookings, improved customer failure messaging, and verified delivery/accept/reject/expiry/cancel/recovery on a Vercel preview with seeded TEST ONLY accounts. Browser popup/countdown/sound verification and final production deployment status are recorded in the unit spec/final report.
+- 2026-07-15 — Unit 001 production deployment — Committed and pushed the validated dispatch fix and Project Bible as `3166ffb398657045aef4e7ae00d041031ab980ef`, deployed it to Vercel production as `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS`, confirmed the `https://velora-cabs.vercel.app` alias, and passed anonymous page/API smoke tests. Unit 001 remains active pending authenticated browser verification of the driver popup, countdown, sound, and both dashboard transitions.
