@@ -28,17 +28,33 @@ export async function POST(request: Request) {
 
     const pendingSnapshot = await db
       .collection("bookings")
-      .where("rideStatus", "==", "searching_driver")
-      .limit(10)
+      .where("rideStatus", "in", ["Pending", "pending", "searching_driver"])
+      .limit(25)
       .get();
 
     for (const bookingDocument of pendingSnapshot.docs) {
       const booking = bookingDocument.data();
-      if (booking.requestedDriverId || booking.bookingType === "schedule") continue;
+      if (
+        booking.requestedDriverId ||
+        (booking.bookingType ?? booking.bookingMode) === "schedule"
+      ) continue;
 
-      const assignedDriverId = await dispatchRideServer(bookingDocument.id);
-      if (assignedDriverId === user.uid) {
-        return NextResponse.json({ success: true, rideRequested: true });
+      try {
+        const assignedDriverId = await dispatchRideServer(bookingDocument.id);
+        if (assignedDriverId === user.uid) {
+          return NextResponse.json({ success: true, rideRequested: true });
+        }
+      } catch (dispatchError) {
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[dispatch]", {
+            event: "pending_booking_skipped",
+            bookingDocumentId: bookingDocument.id,
+            reason:
+              dispatchError instanceof Error
+                ? dispatchError.message
+                : "Unknown pending booking error",
+          });
+        }
       }
     }
 

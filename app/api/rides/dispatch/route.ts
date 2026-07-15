@@ -8,10 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  let bookingDocumentId = "";
+
   try {
     const user = await requireUser(request);
     const body = (await request.json()) as { bookingDocumentId?: string };
-    const bookingDocumentId = body.bookingDocumentId?.trim();
+    bookingDocumentId = body.bookingDocumentId?.trim() ?? "";
 
     if (!bookingDocumentId) {
       return NextResponse.json({ message: "Booking information is missing." }, { status: 400 });
@@ -34,10 +36,18 @@ export async function POST(request: Request) {
     }
 
     const driverId = await dispatchRideServer(bookingDocumentId);
-    return NextResponse.json({ success: true, driverRequested: Boolean(driverId) });
+    return NextResponse.json({
+      success: true,
+      driverRequested: Boolean(driverId),
+      searchState: driverId ? "driver_requested" : "still_searching",
+    });
   } catch (error) {
     const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
-    console.error("Ride dispatch failed:", error);
+    console.error("Ride dispatch failed", {
+      bookingDocumentId,
+      code: unauthenticated ? "UNAUTHENTICATED" : "DISPATCH_FAILED",
+      message: error instanceof Error ? error.message : "Unknown dispatch error",
+    });
     return NextResponse.json(
       { message: unauthenticated ? "Please login again." : "Unable to dispatch ride." },
       { status: unauthenticated ? 401 : 500 }

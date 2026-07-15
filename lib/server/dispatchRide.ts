@@ -13,6 +13,43 @@ interface DriverCandidate {
   distanceKm: number;
 }
 
+type DriverExclusionReason =
+  | "rejected"
+  | "not_approved"
+  | "inactive"
+  | "not_online"
+  | "busy"
+  | "missing_location"
+  | "service_mismatch"
+  | "vehicle_mismatch";
+
+function addExclusion(
+  exclusions: Record<DriverExclusionReason, number>,
+  reason: DriverExclusionReason
+) {
+  exclusions[reason] += 1;
+}
+
+function declaredTypes(data: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = data[key];
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
+function dispatchDebug(event: string, data: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[dispatch]", { event, ...data });
+  }
+}
+
 export async function dispatchRideServer(bookingDocumentId: string) {
   const db = getAdminDb();
   const bookingReference = db.collection("bookings").doc(bookingDocumentId);
@@ -23,6 +60,8 @@ export async function dispatchRideServer(bookingDocumentId: string) {
   }
 
   const booking = bookingSnapshot.data() ?? {};
+  const serviceType = String(booking.serviceType ?? "").trim().toLowerCase();
+  const vehicleType = String(booking.vehicleType ?? "").trim().toLowerCase();
   const pickupLatitude = Number(booking.pickupLatitude ?? booking.pickup?.latitude);
   const pickupLongitude = Number(booking.pickupLongitude ?? booking.pickup?.longitude);
 
@@ -42,21 +81,58 @@ export async function dispatchRideServer(bookingDocumentId: string) {
     .get();
 
   const candidates: DriverCandidate[] = [];
+  const exclusions: Record<DriverExclusionReason, number> = {
+    rejected: 0,
+    not_approved: 0,
+    inactive: 0,
+    not_online: 0,
+    busy: 0,
+    missing_location: 0,
+    service_mismatch: 0,
+    vehicle_mismatch: 0,
+  };
 
   driverSnapshot.forEach((document) => {
-    if (rejectedDrivers.has(document.id)) return;
-
     const data = document.data();
     const latitude = Number(data.currentLatitude ?? data.latitude);
     const longitude = Number(data.currentLongitude ?? data.longitude);
 
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      data.incomingRideId ||
-      data.isApproved === false ||
-      data.isOnline === false
-    ) return;
+    if (rejectedDrivers.has(document.id)) {
+      addExclusion(exclusions, "rejected");
+      return;
+    }
+    if (data.isApproved !== true) {
+      addExclusion(exclusions, "not_approved");
+      return;
+    }
+    if (data.isActive !== true) {
+      addExclusion(exclusions, "inactive");
+      return;
+    }
+    if (data.status !== "online" || data.isOnline !== true) {
+      addExclusion(exclusions, "not_online");
+      return;
+    }
+    if (data.incomingRideId || data.activeRideId) {
+      addExclusion(exclusions, "busy");
+      return;
+    }
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      addExclusion(exclusions, "missing_location");
+      return;
+    }
+
+    const serviceTypes = declaredTypes(data, ["serviceTypes", "supportedServiceTypes"]);
+    if (serviceType && serviceTypes.length > 0 && !serviceTypes.includes(serviceType)) {
+      addExclusion(exclusions, "service_mismatch");
+      return;
+    }
+
+    const vehicleTypes = declaredTypes(data, ["vehicleTypes", "supportedVehicleTypes"]);
+    if (vehicleType && vehicleTypes.length > 0 && !vehicleTypes.includes(vehicleType)) {
+      addExclusion(exclusions, "vehicle_mismatch");
+      return;
+    }
 
     candidates.push({
       id: document.id,
@@ -70,6 +146,13 @@ export async function dispatchRideServer(bookingDocumentId: string) {
   });
 
   candidates.sort((first, second) => first.distanceKm - second.distanceKm);
+
+  dispatchDebug("candidates_evaluated", {
+    bookingDocumentId,
+    queriedDriverCount: driverSnapshot.size,
+    eligibleDriverCount: candidates.length,
+    exclusions,
+  });
 
   for (const candidate of candidates) {
     const driverReference = db.collection("drivers").doc(candidate.id);
@@ -86,7 +169,15 @@ export async function dispatchRideServer(bookingDocumentId: string) {
       const rideStatus = String(latestBooking.rideStatus ?? latestBooking.status ?? "").toLowerCase();
 
       if (["driver_assigned", "cancelled", "completed"].includes(rideStatus)) return false;
-      if (latestBooking.requestedDriverId || latestDriver.status !== "online" || latestDriver.incomingRideId) return false;
+      if (
+        latestBooking.requestedDriverId ||
+        latestDriver.status !== "online" ||
+        latestDriver.isOnline !== true ||
+        latestDriver.isApproved !== true ||
+        latestDriver.isActive !== true ||
+        latestDriver.incomingRideId ||
+        latestDriver.activeRideId
+      ) return false;
 
       const expiresAt = Timestamp.fromMillis(Date.now() + 30_000);
 
@@ -124,7 +215,13 @@ export async function dispatchRideServer(bookingDocumentId: string) {
       return true;
     });
 
-    if (assigned) return candidate.id;
+    if (assigned) {
+      dispatchDebug("driver_requested", {
+        bookingDocumentId,
+        requestedDriverId: candidate.id,
+      });
+      return candidate.id;
+    }
   }
 
   await bookingReference.update({
@@ -134,6 +231,13 @@ export async function dispatchRideServer(bookingDocumentId: string) {
     driverRequestExpiresAt: null,
     noDriverAvailable: true,
     updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  dispatchDebug("no_driver_available", {
+    bookingDocumentId,
+    queriedDriverCount: driverSnapshot.size,
+    eligibleDriverCount: candidates.length,
+    exclusions,
   });
 
   return null;

@@ -740,16 +740,18 @@ export default function BookingForm({ serviceType = "local" }: BookingFormProps)
             }
           );
 
+          const dispatchResult =
+            (await dispatchResponse.json().catch(() => ({}))) as {
+              driverRequested: boolean;
+              message?: string;
+            };
+
           if (!dispatchResponse.ok) {
             throw new Error(
-              "Driver dispatch request failed."
+              dispatchResult.message ??
+                "Driver dispatch request failed."
             );
           }
-
-          const dispatchResult =
-            (await dispatchResponse.json()) as {
-              driverRequested: boolean;
-            };
 
           setSuccessMessage(
             dispatchResult.driverRequested
@@ -763,7 +765,7 @@ export default function BookingForm({ serviceType = "local" }: BookingFormProps)
           );
 
           setSuccessMessage(
-            `Ride ${bookingId} booked. Driver search will continue shortly.`
+            `Ride ${bookingId} was booked, but driver search could not start. Open your dashboard to check the ride or contact support.`
           );
         }
       } else {
