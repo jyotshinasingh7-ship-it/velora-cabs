@@ -13,7 +13,7 @@
 - Anonymous HTTP 200 smoke checks passed for home, login, booking, driver/admin login, onboarding, admin notifications, and legal pages.
 - Firestore rules compiled and deployed to Firebase project `velora-cabs` on 2026-07-14.
 - Git commit `13a19bb` was pushed to `origin/main` before this Bible task.
-- Unit 001 commit `3166ffb398657045aef4e7ae00d041031ab980ef` was deployed to Vercel production on 2026-07-15 as deployment `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS`; the production alias points to `https://velora-cabs.vercel.app`.
+- Unit 001 commit `3166ffb398657045aef4e7ae00d041031ab980ef` was deployed to Vercel production on 2026-07-15 as deployment `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS` and was aliased to `https://velora-cabs.vercel.app`.
 - Production anonymous smoke checks passed for `/`, `/login`, `/book`, `/driver/login`, and `/admin/login`; unauthenticated `POST /api/rides/dispatch` returned safe JSON `401` with `{"message":"Please login again."}`.
 
 ## Implemented but not fully tested
@@ -85,7 +85,7 @@ Line numbers may move; confirm before work.
 ## Current environment/deployment state
 
 - Firebase project: `velora-cabs`; Firestore rules deployed. Storage not configured.
-- Vercel project linked and Unit 001 production deployment `dpl_Dyf7KkW8tEMJQMrWzSVWNapAiHWS` aliased to `https://velora-cabs.vercel.app` on 2026-07-15.
+- Vercel project linked; the latest `main` state is deployed to the production alias `https://velora-cabs.vercel.app`.
 - Required Vercel variable names are documented in architecture/DEPLOYMENT; secret values are never documented.
 - Emulator configuration exists for Auth/Firestore/UI; no executed rules tests recorded.
 - Test seed script exists with dry-run and cleanup safeguards; no live seed result recorded.
