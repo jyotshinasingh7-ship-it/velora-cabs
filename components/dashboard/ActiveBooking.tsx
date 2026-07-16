@@ -19,12 +19,10 @@ import {
   isDriverAssignedStatus,
   normalizeRideStatus,
 } from "@/lib/ride/status";
+import { paiseToDisplayRupees } from "@/lib/finance/money";
+import { normalizeBookingFinance } from "@/lib/finance/normalizeBookingFinance";
 
-import type {
-  Booking,
-  PaymentMethod,
-  PaymentStatus,
-} from "@/types/booking";
+import type { Booking } from "@/types/booking";
 
 interface LegacyBooking {
   id: string;
@@ -71,6 +69,13 @@ interface LegacyBooking {
 
   paymentMethod?: string;
   paymentStatus: string;
+  billingMode?: string;
+  settlementStatus?: string;
+  paymentMethodLocked?: boolean;
+  corporateBillingStatus?: string;
+  financeSchemaVersion?: number;
+  fareLocked?: boolean;
+  fareSnapshot?: unknown;
 
   bookingType?: "now" | "schedule";
   bookingFor?: "self" | "someone_else";
@@ -134,53 +139,16 @@ function formatVehicleName(value: string) {
     );
 }
 
-function normalizePaymentStatus(
-  value: string
-): PaymentStatus {
-  const status = value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-
-  if (
-    status === "authorized" ||
-    status === "paid" ||
-    status === "failed" ||
-    status === "refunded" ||
-    status === "partially_refunded"
-  ) {
-    return status;
-  }
-
-  return "pending";
-}
-
-function normalizePaymentMethod(
-  value?: string
-): PaymentMethod {
-  const method = value
-    ?.trim()
-    .toLowerCase();
-
-  if (
-    method === "upi" ||
-    method === "razorpay"
-  ) {
-    return method;
-  }
-
-  return "cash";
-}
-
 function convertLegacyBooking(
   booking: LegacyBooking
 ): Booking {
+  const normalizedFinance = normalizeBookingFinance(
+    booking as unknown as Record<string, unknown>
+  );
   const finalFare =
-    Number(
-      booking.finalFare ??
-        booking.estimatedFare ??
-        0
-    ) || 0;
+    normalizedFinance.displayFarePaise === null
+      ? 0
+      : paiseToDisplayRupees(normalizedFinance.displayFarePaise);
 
   const baseFare =
     Number(booking.baseFare ?? 0) || 0;
@@ -297,15 +265,17 @@ function convertLegacyBooking(
         booking.status
     ),
 
-    paymentStatus:
-      normalizePaymentStatus(
-        booking.paymentStatus
-      ),
-
-    paymentMethod:
-      normalizePaymentMethod(
-        booking.paymentMethod
-      ),
+    paymentStatus: normalizedFinance.paymentStatus,
+    paymentMethod: normalizedFinance.paymentMethod,
+    billingMode: normalizedFinance.billingMode,
+    settlementStatus: normalizedFinance.settlementStatus,
+    paymentMethodLocked: booking.paymentMethodLocked === true,
+    corporateBillingStatus: booking.corporateBillingStatus ?? "not_applicable",
+    financeSchemaVersion: normalizedFinance.financeSchemaVersion,
+    fareLocked: booking.fareLocked === true,
+    fareSnapshot: normalizedFinance.fareSnapshot,
+    financeReviewRequired: normalizedFinance.reviewRequired,
+    financeCompatibilityReason: normalizedFinance.compatibilityReason,
 
     driver: driverId
       ? {
@@ -589,8 +559,6 @@ export default function ActiveBooking({
 
   const shouldShowPayment =
     normalizedBooking.rideStatus ===
-      "stop_otp_pending" ||
-    normalizedBooking.rideStatus ===
       "completed";
 
   const shouldShowRating =
@@ -619,7 +587,7 @@ export default function ActiveBooking({
 
           <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-right">
             <p className="text-xs uppercase tracking-wide text-white/40">
-              Estimated Fare
+              {normalizedBooking.fareLocked ? "Final Fare" : "Estimated Fare"}
             </p>
 
             <p className="mt-1 text-xl font-bold text-amber-400">
@@ -704,7 +672,7 @@ export default function ActiveBooking({
           </div>
 
           <span className="text-sm font-semibold capitalize text-white/80">
-            {normalizedBooking.paymentStatus}
+            {normalizedBooking.paymentStatus.replaceAll("_", " ")}
           </span>
         </div>
       </div>
@@ -810,6 +778,11 @@ export default function ActiveBooking({
           paymentStatus={
             normalizedBooking.paymentStatus
           }
+          billingMode={normalizedBooking.billingMode}
+          settlementStatus={normalizedBooking.settlementStatus}
+          fareSnapshot={normalizedBooking.fareSnapshot}
+          financeSchemaVersion={normalizedBooking.financeSchemaVersion}
+          reviewRequired={normalizedBooking.financeReviewRequired}
         />
       )}
 
@@ -846,12 +819,19 @@ export default function ActiveBooking({
           "paid" && (
           <div className="rounded-[28px] border border-amber-400/20 bg-amber-400/[0.07] p-6">
             <h3 className="text-lg font-bold text-white">
-              Payment Pending
+              {normalizedBooking.billingMode === "corporate_postpaid"
+                ? "Company Billing"
+                : normalizedBooking.financeReviewRequired
+                  ? "Payment Review Required"
+                  : "Payment Pending"}
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-white/50">
-              Complete the ride payment before
-              submitting the driver rating.
+              {normalizedBooking.billingMode === "corporate_postpaid"
+                ? "No payment is required from the passenger. This ride is pending company billing."
+                : normalizedBooking.financeReviewRequired
+                  ? "This legacy payment state is ambiguous and has not been treated as paid. Please contact support."
+                  : "The ride is complete, but payment is still due. Secure settlement will be enabled in the next payment unit."}
             </p>
           </div>
         )}

@@ -40,6 +40,7 @@ Last verified: 2026-07-15
 - **Booking:** form and map layout, Places suggestion overlays, route/fare state, amber actions, and responsive stacking.
 - **Notifications:** bell count plus dark dropdown/panel, newest-first items, read controls, timestamps, types, and local action links.
 - **Ride alert:** visible request remains primary; sound is optional and user-enabled with enable, sound toggle, and test controls.
+- **Post-ride payment shell:** a completed unpaid/ambiguous ride remains visible in the customer dashboard. The existing dark/gold payment card shows the locked paise breakdown, payment/settlement state, selected-method styling, and a disabled truthful provider boundary. Corporate postpaid shows “Billed to company”; legacy ambiguity shows review required. No commission or driver-wallet internals are exposed.
 
 ## Responsive and accessibility expectations
 

@@ -1,6 +1,6 @@
 # Velora Project Overview
 
-Last verified: 2026-07-15
+Last verified: 2026-07-16
 
 ## Product truth
 
@@ -20,13 +20,13 @@ The current web product serves:
 
 Discover service → sign up or log in → satisfy email verification for password accounts → choose service and route → receive Places/Directions estimate → book now or schedule → dispatch/matching → ride arrival and OTP lifecycle → cash or Razorpay payment → rating and booking history.
 
-Implemented in code: authentication pages, protected dashboard/profile, booking form/map, immediate dispatch call, scheduled data, lifecycle UI/APIs, payment routes, rating, and history. Production HTTP routes were smoke-tested; authenticated end-to-end behavior needs verification. The reported dispatch-delivery failure is active.
+Implemented in code: authentication pages, protected dashboard/profile, booking form/map, immediate dispatch call, scheduled data, lifecycle UI/APIs, payment routes, rating, and history. Unit 001 was production-browser verified from immediate booking through driver delivery, acceptance, dashboard transitions, and ride completion. That result does not establish post-ride payment, commission, or driver-wallet settlement as complete.
 
 ### Driver
 
 Authenticate → submit application → admin review/approval → trusted `drivers/{uid}` creation → driver login → online/offline state and location → incoming request popup/countdown/sound → accept/reject → arrival → start OTP → ride → stop OTP/completion.
 
-Implemented in code. Approval is server-controlled. Full production journey needs verification; a booking has reportedly appeared in admin without reaching the driver.
+Implemented in code. Approval is server-controlled. Unit 001 production-browser verification confirmed request popup, countdown, sound, acceptance, active-ride transition, and ride completion for an approved online driver.
 
 ### Fleet/car owner
 
@@ -43,6 +43,24 @@ Code exists for these routes. Production role-protected workflows need manual ve
 ### Corporate
 
 The current corporate module is **lead-generation only**: a public form creates `corporate_requests`, and an admin page reads/manages those records. There is no company account portal, employee roster, policy engine, contract pricing, monthly billing, GST invoice workflow, or corporate reporting SaaS.
+
+The owner has approved the future direction: an authenticated, single-company corporate portal with trusted `corporate_admin`/`corporate_employee` roles, company-paid postpaid rides, policy and credit enforcement, company percentage discounts, monthly consolidated GST invoices, and manual bank-transfer reconciliation. This is a planned phased module, not current production functionality.
+
+### Planned corporate journey
+
+Company applies → Velora admin reviews → trusted corporate account is approved → corporate admin invites employees and assigns policies → authorized employee/admin books self/employee/guest using the existing booking/dispatch engine → over-limit rides receive corporate approval → estimated credit is reserved → ride completes and final corporate charge replaces the reservation → monthly draft invoice is reviewed/issued → bank transfer is reconciled by Velora admin.
+
+Corporate employees and guests do not use normal cash/Razorpay checkout. Initial services are local, airport, and outstation with immediate/scheduled booking. Online invoice payment, multi-company membership, multi-level approvals, recurring transport, public APIs, and accounting integrations are outside the initial MVP.
+
+Approved operating defaults are ₹1,00,000 company credit, ₹5,000 employee per-ride limit, ₹25,000 employee monthly limit, discount-before-GST with server-side place-of-supply tax treatment, Net 15 plus seven-day grace, guest phone OTP, Velora-admin-only invoice issue/cancellation/reconciliation, and at least eight-year protected financial/report retention. Corporate applications require verified company/representative documents through private, validated, malware-scanned storage. Qualified tax/legal review and Storage implementation remain launch gates, not unresolved product decisions.
+
+### Planned post-ride finance model
+
+Completed Unit 003 defines, but does not implement, the separate customer-payment and driver-settlement lifecycle. For online rides, the customer pays the full locked final fare to Velora through server-verified Razorpay; Velora records platform commission and the driver net as an internal wallet liability. For cash rides, the driver collects the full fare, receives no duplicate digital earning credit, and owes the platform commission through a cash-due balance offset against future online earnings/withdrawals. MVP driver payout supports a verified bank account or verified UPI ID through an audited manual withdrawal settlement; automatic provider payouts are future scope.
+
+All authoritative finance uses integer paise, immutable ledger entries, idempotent server transactions, separate ride/payment/settlement statuses, and a server-locked final fare. Commission is 15% by default with a ₹10 minimum and applies to pre-tax base/distance/time/waiting/night/surge after discount; GST, toll, and parking are excluded. Online earnings have a 24-hour pending hold, cash rides block at ₹1,000 commission due, minimum withdrawal is ₹500, incentives use a separate expense pool, split payment/tips are outside MVP, and refund shortfalls may create audited recoverable driver dues without a negative available balance. These are configurable trusted defaults, not browser constants.
+
+Unit 003A now provides the first lifecycle boundary locally: stop-OTP completion locks a server-authoritative integer-paise snapshot, cash remains `cash_pending_confirmation`, ordinary rides remain payment due, and corporate postpaid bypasses checkout. The customer dashboard shows a truthful locked-fare shell while all current settlement actions fail closed. Razorpay settlement/webhook, commission, wallet accounting, cash due, withdrawals, receipts, refunds, and release scheduling remain unimplemented.
 
 ## Services and current handling
 
@@ -74,19 +92,20 @@ The current corporate module is **lead-generation only**: a public form creates 
 
 ### Incomplete or externally blocked
 
-- Confirmed booking-to-driver delivery problem requires trace and fix.
 - Firebase Storage/document uploads are not configured.
 - Razorpay webhook/reconciliation is not implemented.
+- Unit 003A code is locally implemented and build-validated, including removal of automatic cash-paid completion, but remains active until Firestore emulator and staging/browser lifecycle tests pass.
 - Scheduled notification/ride reminder delivery has no trusted cron scheduler.
-- Corporate full workflow is not defined or implemented.
+- Corporate portal implementation has not started. Unit 002 business definition is completed; Unit 002A now plans corporate application, protected documents, secure admin approval, trusted account creation, and initial corporate-admin association.
 - Emulator/rules tests are not present as an automated test suite.
 - Authenticated production browser journeys need manual testing.
 
 ### Future/proposed scope
 
-- Full corporate account and billing product, pending owner decisions.
+- Phased corporate Units 002A–002J covering approval, tenancy, employees, booking, pricing, credit, invoicing, reconciliation, reporting, and hardening; only Unit 002A has an active planning specification.
 - Secure onboarding document uploads after Storage design/rules.
 - Payment webhooks and reconciliation.
+- Phased Unit 003A–003H implementation for fare locking, complete online settlement, cash settlement, scheduled release/offsets, wallet UI, withdrawals, admin finance/refunds, migration, and hardening.
 - Trusted scheduled job infrastructure.
 - WhatsApp/push communication only after explicit scope and provider decisions.
 

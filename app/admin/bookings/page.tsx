@@ -148,6 +148,10 @@ export default function AdminBookingsPage() {
     bookingId: string,
     status: string
   ) {
+    if (status === "completed") {
+      alert("Ride completion must use the trusted stop-OTP workflow so the final fare is locked safely.");
+      return;
+    }
     try {
       setUpdatingId(bookingId);
 

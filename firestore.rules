@@ -68,7 +68,22 @@ service cloud.firestore {
         && request.resource.data.serviceType in ['local', 'airport', 'outstation']
         && request.resource.data.rideStatus == 'Pending'
         && request.resource.data.status == 'Pending'
-        && request.resource.data.paymentStatus == 'Pending'
+        && request.resource.data.billingMode == 'customer_pay'
+        && request.resource.data.paymentStatus == 'not_due'
+        && request.resource.data.settlementStatus == 'not_settled'
+        && request.resource.data.paymentMethod in ['cash', 'upi', 'razorpay']
+        && request.resource.data.paymentMethodLocked == false
+        && request.resource.data.paymentDueAt == null
+        && request.resource.data.paidAt == null
+        && request.resource.data.cashCollectedAt == null
+        && request.resource.data.corporateBillingStatus == 'not_applicable'
+        && request.resource.data.financeSchemaVersion == 1
+        && request.resource.data.fareLocked == false
+        && request.resource.data.fareVersion == 0
+        && request.resource.data.fareLockedAt == null
+        && request.resource.data.fareLockedBy == ''
+        && request.resource.data.fareLockIdempotencyKey == ''
+        && request.resource.data.fareSnapshot == null
         && request.resource.data.driverId == ''
         && request.resource.data.driverName == ''
         && request.resource.data.requestedDriverId == ''
@@ -76,6 +91,38 @@ service cloud.firestore {
         && request.resource.data.platform == 'web'
         && (request.resource.data.bookingMode == 'now'
           || request.resource.data.scheduledAt is timestamp);
+    }
+
+    function protectedBookingFinanceFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'billingMode', 'paymentStatus', 'paymentMethod', 'paymentMethodLocked',
+        'settlementStatus', 'paymentDueAt', 'paidAt', 'cashCollectedAt',
+        'corporateBillingStatus', 'financeSchemaVersion', 'fareLocked',
+        'fareVersion', 'fareLockedAt', 'fareLockedBy', 'fareLockTriggeredByUid',
+        'fareLockIdempotencyKey', 'fareSnapshot', 'fareType', 'finalFare',
+        'estimatedFare', 'fare', 'fareBreakdown', 'baseFare', 'distanceFare',
+        'durationFare', 'fareWithoutGST', 'gstAmount', 'gstPercentage',
+        'toll', 'parking', 'waitingCharge', 'nightCharge', 'platformCharge',
+        'driverAllowance',
+        'payableFare', 'payableFareBasis', 'payableFareBreakdown',
+        'paymentOrderAmount', 'paymentCurrency', 'razorpay', 'razorpayOrderId',
+        'paidAmount'
+      ]);
+    }
+
+    function adminBookingUpdateAllowed() {
+      return isAdmin()
+        && protectedBookingFinanceFieldsUnchanged()
+        && (((request.resource.data.rideStatus in [
+              'pending', 'searching_driver', 'driver_assigned', 'driver_arriving',
+              'driver_arrived', 'start_otp_pending', 'in_progress',
+              'stop_otp_pending', 'cancelled', 'Pending'
+            ])
+            && request.resource.data.status == request.resource.data.rideStatus)
+          || (resource.data.rideStatus == 'completed'
+            && resource.data.status == 'completed'
+            && request.resource.data.rideStatus == 'completed'
+            && request.resource.data.status == 'completed'));
     }
 
     match /users/{userId} {
@@ -173,7 +220,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && validCustomerBookingCreate();
       allow read: if ownsBooking(resource.data) || isBookingDriver(resource.data) || isAdmin();
-      allow update: if isAdmin() || (
+      allow update: if adminBookingUpdateAllowed() || (
         signedIn()
         && resource.data.requestedDriverId == request.auth.uid
         && request.resource.data.driverId == request.auth.uid

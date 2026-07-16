@@ -274,8 +274,13 @@ export default function DashboardPage() {
       const status =
         normalizeRideStatus(booking).toLowerCase();
 
+      if (status === "completed") {
+        const paymentStatus = String(booking.paymentStatus ?? "")
+          .trim().toLowerCase().replace(/[\s-]+/g, "_");
+        return !["paid", "cash_collected", "refunded"].includes(paymentStatus);
+      }
+
       return (
-        status !== "completed" &&
         status !== "cancelled"
       );
     });

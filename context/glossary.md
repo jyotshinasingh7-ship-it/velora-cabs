@@ -1,6 +1,6 @@
 # Velora Glossary
 
-Last verified: 2026-07-15
+Last verified: 2026-07-16
 
 - **Booking:** Customer-created `bookings` document containing route, estimate, schedule, rider, vehicle choice, payment, dispatch, and lifecycle fields.
 - **Ride:** Operational execution of a booking after/while dispatch and driver lifecycle state advance.
@@ -12,11 +12,47 @@ Last verified: 2026-07-15
 - **Approved driver:** User approved by admin with trusted `users.role == "driver"` and `drivers/{uid}` approval/active state.
 - **Fleet partner:** Customer-level account intent used to submit vehicle-owner applications; not automatically a dispatch role.
 - **Vehicle owner application:** `vehicleOwnerApplications` record reviewed by admin before a trusted vehicle record exists.
-- **Corporate request:** Lead document in `corporate_requests`; it is not a corporate account or contract.
+- **Corporate request:** Current public lead document in `corporate_requests`; it is not a corporate application, approved account, membership, or contract.
+- **Corporate application:** Planned authenticated company submission with required protected company/representative documents, reviewed by Velora before a trusted corporate account is activated; applicants cannot approve themselves.
+- **Corporate application document:** Private, application-scoped PAN/GST/registration/address/representative evidence subject to ownership, type, size, scan/quarantine, version, retention, and admin-review controls; it is never publicly readable authority.
+- **Corporate account:** Planned approved company tenant that owns policy, pricing, credit, billing-cycle, invoice, and operating-status configuration; default credit is `10000000` paise.
+- **Corporate admin:** Planned trusted company role that manages company profile, employees, policy/limits, bookings/approvals, rides, invoices, and reports within one company; it cannot change protected Velora approval or financial authority.
+- **Corporate employee:** Planned trusted one-company membership that can book and view permitted corporate rides within assigned company policy; defaults are `500000` paise per ride and `2500000` paise monthly unless trusted policy changes them.
+- **Company policy ceiling:** Trusted maximum above which a corporate admin cannot raise employee spending limits without Velora admin approval or another approved server-side policy rule.
+- **Corporate booking:** Planned company-paid postpaid ride stored in the existing `bookings` collection with protected company, actor/passenger, policy, pricing, credit, and invoice fields; it bypasses customer cash/Razorpay checkout.
+- **Corporate booking approval:** Planned company-scoped approval required when an employee request exceeds assigned limits; it does not grant dispatch or credit without a trusted server transaction.
+- **Credit reservation:** Paise-denominated amount transactionally held when a corporate booking is approved/confirmed, then released or atomically replaced by the final ride/cancellation charge.
+- **Corporate credit ledger:** Planned append-only, idempotent financial event record for reservations, releases, charges, payments, overrides, and corrections.
+- **Billing cycle:** Company period, initially monthly, used to group eligible corporate charges into an invoice.
+- **Corporate invoice:** Planned monthly GST billing record that starts as a draft, is issued after trusted Velora review, and may be partially paid, paid, overdue, or cancelled.
+- **Manual reconciliation:** Trusted Velora admin recording of a company bank-transfer amount/reference/date against an invoice with immutable audit history.
+- **Invoice grace period:** Seven calendar days after a corporate invoice due date during which warnings appear; after grace, new bookings are blocked by default without interrupting active rides, subject to audited Velora extension/override.
+- **Corporate financial archive:** Protected retention state used instead of client deletion so invoices, payments, financial audits, and applicable ride reports remain intact for at least eight years.
 - **Estimate:** Browser-visible fare calculation stored as estimated fare; not an authorization to charge.
 - **Payable fare:** Server-recalculated amount based on trusted settings and server Directions data, represented in rupees and converted to integer paise for Razorpay.
+- **Fare lock:** Planned immutable, versioned server snapshot of the final supported post-ride fare in integer paise; later corrections use adjustment records rather than overwrite it.
+- **Commissionable fare:** Non-negative pre-tax base, distance, time, waiting, night, and surge charges after discount. GST, toll, parking, and future tips are excluded.
+- **Pass-through charge:** Separately itemized toll or parking amount whose driver reimbursement/collection treatment cannot inflate Velora platform revenue.
+- **Platform commission:** Velora revenue calculated server-side with integer basis points and round-half-up from commissionable fare, subject to the configured minimum and capped at commissionable fare; approved default is 15% with a `1000`-paise minimum.
+- **Driver net earning:** Gross ride amount minus platform commission and approved penalties plus approved incentives, all calculated in paise.
+- **Driver wallet:** Planned server-authoritative accounting aggregate for Velora's liability to a driver; an available balance is not proof of bank/UPI payout.
+- **Wallet transaction:** Planned immutable, idempotent ledger record explaining every earning, commission, cash due/offset, withdrawal, refund, incentive, penalty, or adjustment.
+- **Cash commission due:** Platform commission owed to Velora after a driver collects the full cash fare; it receives no duplicate digital earning credit and offsets future earnings/withdrawals.
+- **Recoverable driver due:** Explicit audited refund/reversal amount owed after associated driver funds are unavailable/withdrawn; it offsets future earnings/withdrawals without silently making available balance negative.
+- **Settlement hold:** Approved 24-hour default period in which a verified online earning remains pending, subject to refund/dispute/fraud/support/admin holds before trusted scheduled release.
+- **Verified payout method:** Protected, masked bank account or UPI ID approved for an MVP manual driver withdrawal.
+- **Net withdrawable:** `max(0, availableBalancePaise - cashCommissionDuePaise - reservedWithdrawalPaise)` calculated by trusted server code.
+- **Ride financial settlement:** Planned exactly-once booking-level record linking locked fare, payment method/provider result, commission, driver net, and settlement status.
+- **Withdrawal reservation:** Trusted hold against available wallet funds created atomically when a driver requests manual bank/UPI payout; it is not a completed payout.
+- **Payment provider event:** Planned server-only idempotency/reconciliation claim for a signature-verified Razorpay callback or direct verification result.
 - **Booking status / ride status:** Lifecycle state, canonically lowercase: `pending`, `searching_driver`, `driver_assigned`, `driver_arriving`, `driver_arrived`, `start_otp_pending`, `in_progress`, `stop_otp_pending`, `completed`, `cancelled`. Legacy initial `Pending` exists.
-- **Payment status:** `pending`, `authorized`, `paid`, `failed`, `refunded`, or `partially_refunded` in typed code; live transitions need end-to-end verification.
+- **Payment status:** Canonical booking payment state, separate from ride status: `not_due`, `payment_pending`, `payment_processing`, `paid`, `cash_pending_confirmation`, `cash_collected`, `payment_failed`, `partially_refunded`, `refunded`, or `disputed`. Legacy casing/statuses are read-normalized only.
+- **Settlement status:** Canonical driver-finance state: `not_settled`, `pending`, `available`, `withdrawal_reserved`, `processing`, `settled`, or `reversed`. Unit 003A writes only `not_settled` and performs no settlement.
+- **Billing mode:** Protected booking authority: normal `customer_pay` checkout or trusted `corporate_postpaid` company billing; clients cannot self-select corporate billing.
+- **Finance schema version:** Version marker identifying the canonical fare/payment lifecycle contract; Unit 003A uses version 1 without settling money.
+- **Fare snapshot:** Immutable version-1 integer-paise breakdown locked by the trusted stop-OTP completion route from server Directions and trusted vehicle pricing. Unsupported components remain explicit zeroes.
+- **Fare-lock idempotency key:** Deterministic `fare-lock:{bookingDocumentId}:v1` identity that makes completion replay return the existing snapshot without duplicate counters or notifications.
+- **Legacy finance review:** Read-only compatibility classification for completed bookings whose payment/fare state is missing or contradictory; it never invents payment success or mutates history.
 - **Notification campaign:** Admin-authored `notificationCampaigns` record broadcast by a trusted server API to a defined audience.
 - **Trusted record:** Server/admin-controlled document or protected fields that clients cannot create/approve arbitrarily, such as approved drivers and vehicles.
 - **Server-only operation:** Code using Firebase Admin or secrets in Node route handlers and never bundled into the browser.

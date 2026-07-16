@@ -5,6 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/server/firebaseAdmin";
 import { requireUser } from "@/lib/server/requireUser";
 import { createNotification, setNotification } from "@/lib/server/notifications";
+import { getUnit003APaymentBoundary } from "@/lib/server/paymentLifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,6 +159,11 @@ export async function POST(request: Request) {
           status: 400,
         }
       );
+    }
+
+    const boundary = getUnit003APaymentBoundary(bookingData, "verification");
+    if (boundary) {
+      return NextResponse.json({ message: boundary.message }, { status: boundary.status });
     }
 
     const rideStatus = String(bookingData.rideStatus ?? bookingData.status ?? "").toLowerCase();

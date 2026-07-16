@@ -57,7 +57,7 @@ async function authoritativeRoute(booking: BookingData) {
   return { distanceMeters, durationSeconds };
 }
 
-export async function calculateAuthoritativePayment(booking: BookingData) {
+export async function getAuthoritativeFareInputs(booking: BookingData) {
   const vehicleType = String(booking.vehicleType ?? "").trim();
   if (!vehicleType) throw new Error("BOOKING_VEHICLE_MISSING");
   const pricingSnapshot = await getAdminDb().collection("settings").doc(vehicleType).get();
@@ -66,19 +66,37 @@ export async function calculateAuthoritativePayment(booking: BookingData) {
   if (pricing.enabled === false) throw new Error("PAYMENT_PRICING_NOT_AVAILABLE");
 
   const route = await authoritativeRoute(booking);
-  const multiplier = String(booking.serviceType ?? "") === "outstation" && String(booking.tripType ?? "") === "round_trip" ? 2 : 1;
-  const rideDate = bookingDate(booking.scheduledAt);
+  const multiplier = String(booking.serviceType ?? "") === "outstation"
+    && String(booking.tripType ?? "") === "round_trip" ? 2 : 1;
+  const rideDate = bookingDate(
+    booking.scheduledAt ?? booking.startedAt ?? booking.createdAt
+  );
+
+  return {
+    vehicleType,
+    pricing,
+    pricingUpdatedAt: pricing.updatedAt,
+    routeDistanceMeters: route.distanceMeters * multiplier,
+    routeDurationSeconds: route.durationSeconds * multiplier,
+    isNight: isNightRide(indiaHour(rideDate)),
+    isOutstation: String(booking.serviceType ?? "") === "outstation",
+  };
+}
+
+export async function calculateAuthoritativePayment(booking: BookingData) {
+  const inputs = await getAuthoritativeFareInputs(booking);
+  const pricing = inputs.pricing;
   const result = calculateRideFare({
     baseFare: finiteNumber(pricing.baseFare),
     perKm: finiteNumber(pricing.perKm),
     perMinute: finiteNumber(pricing.perMinute),
-    distanceKm: (route.distanceMeters / 1000) * multiplier,
-    durationMinutes: (route.durationSeconds / 60) * multiplier,
+    distanceKm: inputs.routeDistanceMeters / 1000,
+    durationMinutes: inputs.routeDurationSeconds / 60,
     minimumKm: Math.max(1, finiteNumber(pricing.minimumKm, 1)),
     minimumFare: finiteNumber(pricing.minimumFare),
     platformCharge: finiteNumber(pricing.platformCharge),
     gstPercentage: finiteNumber(pricing.gst),
-    isNightRide: isNightRide(indiaHour(rideDate)),
+    isNightRide: inputs.isNight,
     nightCharge: finiteNumber(pricing.nightCharge),
     tollCharge: 0,
     parkingCharge: 0,
@@ -86,14 +104,14 @@ export async function calculateAuthoritativePayment(booking: BookingData) {
     freeWaitingMinutes: 0,
     waitingChargePerMinute: finiteNumber(pricing.waitingCharge),
     driverAllowance: finiteNumber(pricing.driverAllowance),
-    driverAllowanceApplicable: String(booking.serviceType ?? "") === "outstation",
+    driverAllowanceApplicable: inputs.isOutstation,
   });
   if (result.finalFare <= 0) throw new Error("PAYMENT_AMOUNT_INVALID");
   return {
     amountInPaise: Math.round(result.finalFare * 100),
     payableFare: result.finalFare,
     fareBreakdown: result,
-    routeDistanceMeters: route.distanceMeters * multiplier,
-    routeDurationSeconds: route.durationSeconds * multiplier,
+    routeDistanceMeters: inputs.routeDistanceMeters,
+    routeDurationSeconds: inputs.routeDurationSeconds,
   };
 }

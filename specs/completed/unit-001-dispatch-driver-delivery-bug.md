@@ -1,10 +1,10 @@
 # Unit 001 — Dispatch Driver Delivery Bug
 
-- Status: implemented and preview-integrated; browser UI verification pending
+- Status: completed; production-browser verified
 - Owner: Velora project owner
 - Created: 2026-07-15
 - Last updated: 2026-07-15
-- Related decision IDs: VEL-ADR-003, VEL-ADR-005
+- Related decision IDs: VEL-ADR-003, VEL-ADR-005, VEL-ADR-010
 - Related Bible sections: `context/architecture.md` (Booking and dispatch), `context/progress-tracker.md` (Confirmed bugs)
 
 ## Owner goal
@@ -50,7 +50,7 @@ Trace and fix the first point where the booking-to-driver delivery contract brea
 
 ## Out of scope
 
-- UI redesign, broad lifecycle rewrite, new dispatch algorithm, scheduled dispatch, push/WhatsApp, pricing/payment changes, or unrelated warning cleanup.
+- UI redesign, broad lifecycle rewrite, new dispatch algorithm, scheduled dispatch, push/WhatsApp, pricing/payment changes, commission calculation, driver-wallet settlement, or unrelated warning cleanup.
 
 ## User roles
 
@@ -139,10 +139,11 @@ Missing location, stale online state, casing mismatch, active/incoming ride, exp
 
 ## Completion criteria
 
-- Root cause proven with evidence.
-- Focused fix implemented without weakened security.
-- Controlled end-to-end staging test passes for delivery, accept, reject/expiry, and cancellation.
-- Required validation passes; regressions and remaining limitations documented.
+- [x] Root cause proven with evidence.
+- [x] Focused fix implemented without weakened security.
+- [x] Controlled preview integration passes for delivery, accept, reject/expiry, cancellation, negative eligibility, and online recovery.
+- [x] Production browser test confirms request delivery, popup, countdown, alert sound, acceptance, customer/driver transitions, and ride completion.
+- [x] Required validation passes; regressions and remaining limitations are documented.
 
 ## Rollback plan
 
@@ -184,4 +185,13 @@ Validation results:
 - Vercel preview build: passed at `https://velora-cabs-oaeuhyl20-jyotshinasingh7-ship-its-projects.vercel.app`.
 - `npm audit --omit=dev`: 10 moderate, 0 high, 0 critical; the moderate findings include transitive Firebase Admin 13 dependencies and the existing Next/PostCSS advisory path.
 
-The spec remains active because the authenticated browser popup, countdown, and sound were not directly witnessed. No claim of full browser end-to-end completion is made.
+Production browser evidence supplied by the owner on 2026-07-15 at `https://velora-cabs.vercel.app`:
+
+- A customer successfully created an immediate ride.
+- The approved online driver received the request.
+- The incoming-ride popup, countdown, and ride-alert sound worked.
+- The driver accepted the request and the driver dashboard transitioned to the active ride.
+- The customer dashboard reflected the assigned/active ride.
+- The operational ride lifecycle proceeded through ride completion.
+
+Unit 001 is therefore completed and moved to `specs/completed/`. This evidence proves dispatch and ride completion, not post-ride payment completion. Customer payment, commission calculation, and driver-wallet settlement remain a separate pending feature unit and must not be inferred from the completed ride state.

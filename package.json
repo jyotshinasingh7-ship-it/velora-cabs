@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:unit003a": "node scripts/test-unit-003a.mjs",
+    "audit:finance:dry-run": "node scripts/audit-legacy-booking-finance.mjs",
     "seed:test": "node scripts/seed-test-accounts.mjs",
     "seed:test:cleanup": "node scripts/seed-test-accounts.mjs --cleanup",
     "seed:test:dry-run": "node scripts/seed-test-accounts.mjs --dry-run"

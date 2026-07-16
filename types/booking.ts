@@ -1,4 +1,11 @@
 import type { Timestamp } from "firebase/firestore";
+import type {
+  BillingMode,
+  CanonicalPaymentMethod,
+  CanonicalPaymentStatus,
+  FareSnapshot,
+  SettlementStatus,
+} from "@/types/finance";
 
 export type RideStatus =
   | "pending"
@@ -12,18 +19,8 @@ export type RideStatus =
   | "completed"
   | "cancelled";
 
-export type PaymentStatus =
-  | "pending"
-  | "authorized"
-  | "paid"
-  | "failed"
-  | "refunded"
-  | "partially_refunded";
-
-export type PaymentMethod =
-  | "cash"
-  | "upi"
-  | "razorpay";
+export type PaymentStatus = CanonicalPaymentStatus;
+export type PaymentMethod = CanonicalPaymentMethod;
 
 export type BookingType =
   | "now"
@@ -170,7 +167,16 @@ export interface Booking {
 
   rideStatus: RideStatus;
   paymentStatus: PaymentStatus;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
+  billingMode: BillingMode;
+  settlementStatus: SettlementStatus;
+  paymentMethodLocked: boolean;
+  corporateBillingStatus: string;
+  financeSchemaVersion: number;
+  fareLocked: boolean;
+  fareSnapshot: FareSnapshot | null;
+  financeReviewRequired: boolean;
+  financeCompatibilityReason: string | null;
 
   driver: AssignedDriver | null;
   vehicle: AssignedVehicle | null;
