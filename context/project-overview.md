@@ -1,6 +1,6 @@
 # Velora Project Overview
 
-Last verified: 2026-07-16
+Last verified: 2026-07-17
 
 ## Product truth
 
@@ -94,7 +94,7 @@ Unit 003A now provides the first lifecycle boundary locally: stop-OTP completion
 
 - Firebase Storage/document uploads are not configured.
 - Razorpay webhook/reconciliation is not implemented.
-- Unit 003A code is locally implemented and build-validated, including removal of automatic cash-paid completion, but remains active until Firestore emulator and staging/browser lifecycle tests pass.
+- Unit 003A code is locally implemented, build-validated, and exercised with the Firestore Emulator. A distinct `velora-cabs-staging` Firebase project is accessible and the six public Preview values now verify against it. Local Windows Vercel adapter packaging fails despite valid Next output, so a remote Vercel Preview build plus coordinated staging rules and authenticated browser lifecycle tests remain pending.
 - Scheduled notification/ride reminder delivery has no trusted cron scheduler.
 - Corporate portal implementation has not started. Unit 002 business definition is completed; Unit 002A now plans corporate application, protected documents, secure admin approval, trusted account creation, and initial corporate-admin association.
 - Emulator/rules tests are not present as an automated test suite.

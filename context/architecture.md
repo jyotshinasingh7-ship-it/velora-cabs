@@ -1,6 +1,6 @@
 # Velora Architecture
 
-Last verified: 2026-07-16
+Last verified: 2026-07-17
 
 ## Technology stack
 
@@ -212,7 +212,7 @@ Approved finance policy:
 - Manual withdrawals support verified bank and UPI methods with masked details and audited payout references.
 - Refund shortfalls may create explicit recoverable driver dues; available balance never silently becomes negative.
 
-Unit 003A is implemented locally but remains active pending emulator and staging/browser evidence. `fareSnapshot` is the versioned paise authority; compatibility rupee projections remain read-only aliases. New customer bookings start `billingMode: customer_pay`, unlocked, `not_due`, and `not_settled`. The customer dashboard keeps completed unpaid/ambiguous rides visible and renders the locked breakdown plus a disabled, truthful payment boundary. `corporate_postpaid` renders company billing and never customer checkout. Existing new-schema payment APIs remain fail-closed until Unit 003B implements complete online settlement. Unit 003A creates no commission, wallet, cash-due, withdrawal, refund, webhook, receipt, or release-scheduler records.
+Unit 003A is implemented locally and its focused suite passes with Firestore Emulator v1.21.0/OpenJDK 21.0.11, but remains active pending coordinated staging deployment and authenticated browser evidence. `fareSnapshot` is the versioned paise authority; compatibility rupee projections remain read-only aliases. New customer bookings start `billingMode: customer_pay`, unlocked, `not_due`, and `not_settled`. The customer dashboard keeps completed unpaid/ambiguous rides visible and renders the locked breakdown plus a disabled, truthful payment boundary. `corporate_postpaid` renders company billing and never customer checkout. Existing new-schema payment APIs remain fail-closed until Unit 003B implements complete online settlement. Unit 003A creates no commission, wallet, cash-due, withdrawal, refund, webhook, receipt, or release-scheduler records.
 
 Qualified Indian tax/accounting review, Razorpay webhook secret/dashboard configuration, and trusted scheduler deployment/testing remain production implementation gates, not unresolved business decisions.
 
@@ -264,7 +264,7 @@ Driver alert controls require user-enabled browser audio, offer sound on/off and
 - Unit 001 dispatch delivery is fixed and production-browser verified through ride completion.
 - Storage/document uploads absent; `firebase.json` has no Storage rules.
 - Razorpay webhook absent.
-- Unit 003A fare lock/lifecycle separation is implemented locally but not emulator/staging verified. Actual payment, commission, wallet, cash due, withdrawals, refunds, and release automation remain unimplemented.
+- Unit 003A fare lock/lifecycle separation is locally/emulator verified but not staging/browser verified. Firebase project `velora-cabs-staging` and all six public Preview variables are verified. On Windows, Vercel CLI 54.20.1/56.3.1 adapters misclassify the valid static `/admin/analytics` output as requiring a missing lambda and stop before producing functions/static output; the route is present in all relevant Next manifests and prerender artifacts. Remote Vercel Preview build evidence is required before staging rules deployment. Actual payment, commission, wallet, cash due, withdrawals, refunds, and release automation remain unimplemented.
 - Scheduled dispatch/campaign/reminder automation absent.
 - No automated test or Firestore rules test suite.
 - Authenticated production, Maps, payments, onboarding, notification, and lifecycle journeys need verification.

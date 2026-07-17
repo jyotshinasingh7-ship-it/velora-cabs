@@ -1,6 +1,6 @@
 # Velora Decisions Log
 
-Last verified: 2026-07-16
+Last verified: 2026-07-17
 
 Append-only. A later decision supersedes an earlier entry; do not rewrite history.
 
@@ -193,11 +193,11 @@ Append-only. A later decision supersedes an earlier entry; do not rewrite histor
 ## VEL-ADR-017 — Stop OTP is the atomic version-1 fare-lock boundary
 
 - Date: 2026-07-16
-- Status: implemented locally; runtime verification pending
+- Status: implemented and emulator-verified; coordinated staging/browser verification pending
 - Decision: Keep authenticated assigned-driver `POST /api/rides/otp` with `action: verify_end` as the only normal Unit 003A completion/fare-lock authority. Prepare the server Directions/current-pricing candidate before the transaction, then transactionally revalidate booking inputs and commit completion, immutable `fareSnapshot`, canonical payment/settlement/corporate state, driver release, OTP cleanup, and deterministic notification. Use `fare-lock:{bookingDocumentId}:v1` for replay identity. New customer bookings use `billingMode: customer_pay`; current payment endpoints fail closed until Unit 003B.
 - Reason: Ride completion and fare authority must not be split across browser calls or permit cash-paid/payment success before trusted settlement. Reusing the existing OTP authority preserves the production-verified ride lifecycle while making the finance initialization atomic.
 - Alternatives considered: separate client-callable fare-lock endpoint; copy the browser estimate; continue cash auto-paid; permit current Razorpay/cash routes for new schema; direct admin completed mutation. Rejected for race, authority, false-settlement, or audit risks.
 - Impact: booking creation/rules, stop-OTP completion, customer completed-unpaid selection/payment shell, legacy normalization/audit, admin operational status mutation, and future Unit 003B settlement preconditions.
 - Files/specs affected: active Unit 003A, `app/api/rides/otp/route.ts`, finance helpers/types, payment routes, customer dashboard/payment card, `firestore.rules`, Project Bible.
 - Owner approval source: explicit Unit 003A implementation instruction supplied on 2026-07-16.
-- Follow-up required: install Java/run rules authorization tests and staging-test online/undecided, cash, corporate, replay, driver release, and customer shell before moving Unit 003A to completed.
+- Follow-up required: Preview values now resolve to `velora-cabs-staging`. Because clean Windows Vercel adapters 4.20.2/4.20.4 fail packaging a valid static route, use a normal remote Vercel Preview build as the application gate; deploy matching staging rules only after success, then test online/undecided, cash, corporate, replay, driver release, and customer shell before moving Unit 003A to completed.

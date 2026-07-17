@@ -1,8 +1,8 @@
 # Velora Progress Tracker
 
-- Last verified: 2026-07-16
-- Current branch: `main`; Unit 001 implementation commit `3166ffb398657045aef4e7ae00d041031ab980ef` pushed to `origin/main`
-- Current phase: Unit 003A local implementation and emulator execution complete; staging deployment/API/data and owner browser verification pending; Unit 002A remains an independent active plan
+- Last verified: 2026-07-17
+- Current branch: `unit-003a-staging-verification`; Unit 003A implementation baseline `587fe32509e0ebaa0dc22d4dd6db97eca72b2eb8`; production `main` remains unchanged
+- Current phase: Unit 003A local implementation and emulator execution complete; staging Preview values are verified; local Windows Vercel adapter packaging is unreliable, so remote Preview build and owner browser verification remain pending; Unit 002A remains an independent active plan
 - Current goal: verify Unit 003A in a safe non-production staging environment without adding settlement, wallet, webhook, withdrawal, refund, scheduler, or corporate invoicing scope
 - Current release status: deployed for client testing; not production-ready by the Bible definition
 
@@ -29,12 +29,12 @@
 - Notifications, admin broadcasts, application/lifecycle notifications, and driver sound controls.
 - Intercity ride publishing/search/seat requests.
 - Admin pricing, customers, bookings, drivers, applications, corporate leads, analytics, and settings pages.
-- Unit 003A integer-paise fare snapshot, trusted stop-OTP lock, separated payment/settlement/corporate states, cash-not-paid completion, post-ride shell, legacy normalization/audit tooling, fail-closed payment boundary, and focused booking rules. Local tests/build passed; emulator/staging did not.
+- Unit 003A integer-paise fare snapshot, trusted stop-OTP lock, separated payment/settlement/corporate states, cash-not-paid completion, post-ride shell, legacy normalization/audit tooling, fail-closed payment boundary, and focused booking rules. Local tests/build and the Firestore emulator command pass; staging/browser verification does not yet.
 
 ## In progress
 
 - Unit 002A planning for authenticated application, private documents, secure admin review, trusted corporate account creation, initial corporate-admin association, audit, notifications, rules, idempotency, legacy lead compatibility, and staging tests.
-- Unit 003A VERIFY: install Java/run rules authorization tests, select a staging project, execute customer/driver stop-OTP completion for online/undecided and cash, test trusted corporate exclusion and replay, and run the guarded read-only legacy audit.
+- Unit 003A VERIFY: prove the branch with a remote Vercel Preview build, deploy matching rules only after application success, then execute customer/driver stop-OTP completion for online/undecided and cash, trusted corporate exclusion, replay, dedicated authorization cases, and the guarded read-only legacy audit.
 
 ## Resolved bugs
 
@@ -92,8 +92,9 @@ Line numbers may move; confirm before work.
 
 ## Current environment/deployment state
 
-- Firebase project: `velora-cabs`; Firestore rules deployed. Storage not configured.
+- Firebase production project: `velora-cabs`; Firestore rules deployed. Separate Firebase staging project `velora-cabs-staging` is now visible/authorized, but Unit 003A rules were not deployed during the 2026-07-17 attempt. Storage is not configured.
 - Vercel project linked; the latest `main` state is deployed to the production alias `https://velora-cabs.vercel.app`.
+- The linked Vercel Preview environment contains all required names. The six public Firebase variables are readable/non-empty and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` equals `velora-cabs-staging`; server secrets remain protected. Local Windows Vercel adapter builds fail after valid Next compilation with `Unable to find lambda for route: /admin/analytics`, while no Vercel functions/static output is produced.
 - Required Vercel variable names are documented in architecture/DEPLOYMENT; secret values are never documented.
 - Emulator configuration exists for Auth/Firestore/UI; no executed rules tests recorded.
 - Test seed script exists with dry-run and cleanup safeguards; no live seed result recorded.
@@ -113,6 +114,7 @@ Line numbers may move; confirm before work.
 - 2026-07-16 Unit 003 completion / Unit 003A planning: twelve-decision/spec placement/completeness, Markdown links, secret safety, and documentation-only scope passed; `npx.cmd tsc --noEmit` passed; lint passed with zero errors and the same four warnings; Next.js 16.2.10 production build passed with 43 static pages; `git diff --check` passed with only existing line-ending notices.
 - 2026-07-16 Unit 003A local implementation: focused unit/structural tests passed; typecheck passed; lint passed with zero errors and the same four warnings; Next.js 16.2.10 production build passed with 43 static pages; `git diff --check` passed; Markdown links and secret scan passed. The audit production safeguard refused before connection as designed. Firestore emulator startup failed with `spawn java ENOENT`; staging/API/browser and live audit were not run.
 - 2026-07-16 Unit 003A owner emulator evidence: OpenJDK 21.0.11 and Firestore Emulator v1.21.0 started successfully; `firebase.cmd emulators:exec --only firestore --project demo-velora-cabs "npm.cmd run test:unit003a"` passed and exited code 0. This supersedes the prior missing-Java blocker. Dedicated rules allow/deny tests are still absent from the repository.
+- 2026-07-17 Unit 003A staging gate: focused test and emulator command passed; typecheck/local build passed; lint had zero errors and the four pre-existing warnings. Firebase CLI confirms `velora-cabs-staging`; all six public Preview values are now verified. Clean Windows Vercel CLI 54.20.1 and 56.3.1 builds both fail in adapter packaging despite a valid static analytics route, so remote Preview proof is the next gate and rules remain undeployed.
 
 ## Active specs
 
@@ -127,7 +129,7 @@ Line numbers may move; confirm before work.
 
 ## Next recommended unit
 
-Install Java, execute Unit 003A Firestore authorization tests, then deploy to a safe staging target with the server Maps key and run the stop-OTP/payment-due/cash/corporate/replay browser matrix. Keep actual Razorpay settlement, commission/wallet posting, cash due, withdrawals, refunds, scheduler, and corporate invoicing out of scope.
+Run a clean remote Vercel Preview build for the staging branch; after it succeeds, deploy Unit 003A rules only to `velora-cabs-staging` and run the stop-OTP/payment-due/cash/corporate/replay browser matrix. Keep actual Razorpay settlement, commission/wallet posting, cash due, withdrawals, refunds, scheduler, and corporate invoicing out of scope.
 
 ## Session log
 
@@ -141,3 +143,5 @@ Install Java, execute Unit 003A Firestore authorization tests, then deploy to a 
 - 2026-07-16 — Unit 003 completion / Unit 003A planning — Approved the final commissionable-fare/toll/parking basis, separate incentive funding, 24-hour automatic hold release boundary, no split cash, controlled method changes, cash threshold, bank/UPI withdrawals, trusted defaults, recoverable refund dues, no MVP tips, and tax-record boundaries. Moved Unit 003 to completed and created active Unit 003A for fare lock/lifecycle separation only. No application code, UI, API, rule, dependency, or configuration changed.
 - 2026-07-16 — Unit 003A implementation — Added paise primitives/snapshot calculation, trusted stop-OTP fare lock and idempotency, separate customer/cash/corporate lifecycle state, fail-closed payment routes, completed-unpaid dashboard shell, legacy normalization/read-only audit tooling, admin completion guard, and focused rules. Local unit/type/lint/build/diff validation passed. Emulator was blocked by missing Java; no staging/browser/provider charge/live audit occurred, so Unit 003A remains active.
 - 2026-07-16 — Unit 003A staging continuation — Recorded owner-confirmed OpenJDK 21.0.11 / Firestore Emulator v1.21.0 evidence and successful emulator command exit 0. Fresh local test/type/lint/build/diff validation passed. Deployment failed closed before mutation: Firebase CLI exposes only production `velora-cabs`, no staging project; pulled Vercel Preview configuration has no staging Firebase project ID and several required client/server values are empty. No preview, rules deployment, API/data mutation, live audit, provider charge, or browser verification occurred. Unit 003B was not started and Unit 003A remains active.
+- 2026-07-17 — Unit 003A staging deployment gate — Confirmed branch `unit-003a-staging-verification` and baseline commit `587fe32509e0ebaa0dc22d4dd6db97eca72b2eb8`. Firebase CLI now exposes `velora-cabs-staging`; Vercel metadata contains all required Preview names, but the pulled environment is empty and the Preview build fails because all six public Firebase variables are missing. Local/emulator/type/lint/build checks passed as recorded. Coordinated deployment failed closed: no Firestore rules deployment, branch push, Vercel Preview, staging data/API test, legacy audit, browser test, production mutation, or Unit 003B work occurred.
+- 2026-07-17 — Unit 003A Vercel adapter diagnosis — Updated only the six public Preview variables as readable client configuration and verified non-empty staging identity without exposing values. `/admin/analytics` exists in the clean Next server tree, app/static/prerender manifests, HTML/RSC/trace/segment output. Clean Windows Vercel adapters 4.20.2 and 4.20.4 both fail before functions/static packaging with a false missing-lambda error. No route/application workaround, dependency change, rules deployment, staging data mutation, production mutation, or Unit 003B work occurred; remote Preview build is the next safe gate.

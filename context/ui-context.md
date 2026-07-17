@@ -1,6 +1,6 @@
 # Velora UI Context
 
-Last verified: 2026-07-15
+Last verified: 2026-07-17
 
 > **Do not redesign or replace the current visual system without explicit owner approval.**
 
@@ -58,5 +58,6 @@ Last verified: 2026-07-15
 - Keyboard/focus behavior for custom dropdowns, Maps autocomplete, and ride modals needs verification.
 - Some starter SVG assets may be unused; no removal is authorized.
 - The ride sound asset format/playback needs browser verification.
+- The Unit 003A post-ride payment shell is locally built but still requires authenticated Preview browser verification; public staging configuration is fixed, while remote Preview build evidence remains pending because the local Windows Vercel adapter cannot package otherwise-valid static route output.
 
 These observations are documentation only and are not authorization to redesign or perform unrelated cleanup.

@@ -508,3 +508,24 @@ Required owner/browser verification after staging is configured:
 6. Run `npm.cmd run audit:finance:dry-run` only with staging Admin variables and `VELORA_FINANCE_AUDIT_ENV=staging`; record category counts only.
 
 No real Razorpay charge is permitted. Unit 003A remains active pending authenticated owner browser evidence. Unit 003B has not started.
+
+## Staging deployment attempt — 2026-07-17
+
+- Confirmed branch `unit-003a-staging-verification` at baseline implementation commit `587fe32509e0ebaa0dc22d4dd6db97eca72b2eb8` with a clean tracked worktree before this documentation update.
+- Firebase CLI now lists and authorizes both `velora-cabs` production and the distinct `velora-cabs-staging` project. Production was not selected, mutated, or deployed.
+- The linked Vercel project is `velora-cabs`. Live metadata confirms all thirteen required names are Preview-scoped, but Vercel intentionally omits their values from metadata/detail responses. No values were printed or written into tracked files.
+- A fresh Preview environment pull materialized all thirteen entries empty. More decisively, `vercel.cmd build --target preview --yes` failed during `/admin/analytics` prerender with `Missing Firebase environment variables: apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId`. The expected `NEXT_PUBLIC_FIREBASE_PROJECT_ID == velora-cabs-staging` gate therefore could not pass.
+- The coordinated staging release failed closed before mutation. `firestore.rules` was not deployed to staging, the branch was not pushed by this attempt, no Vercel Preview deployment was created, and no staging API/data, legacy audit, browser flow, or Razorpay charge was executed.
+- Fresh verification passed: `npm.cmd run test:unit003a`; Firestore Emulator v1.21.0 under OpenJDK 21.0.11 with exit code 0; `npx.cmd tsc --noEmit`; local `npm.cmd run build`; and the pre-documentation `git diff --check`. Lint returned zero errors and the same four pre-existing driver-dashboard warnings. The separate Vercel Preview build failed only at the missing Preview configuration gate above.
+- Staging deployment may resume only after the Vercel Preview values are saved as non-empty, `NEXT_PUBLIC_FIREBASE_PROJECT_ID` resolves exactly to `velora-cabs-staging`, and the application Preview plus matching staging rules can be released together.
+
+Unit 003A remains active. Authenticated owner browser verification is still required, and Unit 003B has not started.
+
+## Local Vercel adapter diagnosis — 2026-07-17
+
+- Replaced the six public Firebase Web App Preview entries as readable non-sensitive Vercel Preview variables, which is appropriate for `NEXT_PUBLIC_*` client configuration. A value-free verification confirmed all six are non-empty, no placeholder remains, and the project ID resolves exactly to `velora-cabs-staging`. Production variables were not changed.
+- Audited `app/admin/analytics/page.tsx`, the client admin layout, root layout, route imports, route-segment exports, middleware/proxy absence, `next.config.ts`, package scripts, and Vercel linkage/settings. The analytics route has no invalid export, runtime override, dynamic/static override, middleware dependency, or custom Vercel configuration.
+- A clean `npm.cmd run build` passed. `/admin/analytics` exists as a static prerender in `.next/server/app/admin/analytics`, `app-paths-manifest.json`, `routes-manifest.json`, and `prerender-manifest.json`, with valid HTML, RSC, metadata, trace, and segment artifacts.
+- Clean local Vercel builds fail on Windows with `Unable to find lambda for route: /admin/analytics` using both CLI 54.20.1 / `@vercel/next` 4.20.2 and current CLI 56.3.1 / `@vercel/next` 4.20.4. The adapter writes only `.vercel/output/config.json` version 3 and produces no functions/static output before failing.
+- This is a local Windows Vercel adapter packaging incompatibility with the valid Next.js 16.2.10 static App Router output, not a genuine analytics route error. Stale `.next`/Vercel output, invalid exports, unsupported runtime, middleware, project linkage, and outdated CLI were independently ruled out. No application or route workaround was added.
+- The next safe evidence is a normal remote Vercel Preview build from the clean branch on Vercel's build environment. Firestore rules remain undeployed until that application Preview succeeds. Unit 003B remains out of scope.
