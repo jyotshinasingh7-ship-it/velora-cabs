@@ -529,3 +529,11 @@ Unit 003A remains active. Authenticated owner browser verification is still requ
 - Clean local Vercel builds fail on Windows with `Unable to find lambda for route: /admin/analytics` using both CLI 54.20.1 / `@vercel/next` 4.20.2 and current CLI 56.3.1 / `@vercel/next` 4.20.4. The adapter writes only `.vercel/output/config.json` version 3 and produces no functions/static output before failing.
 - This is a local Windows Vercel adapter packaging incompatibility with the valid Next.js 16.2.10 static App Router output, not a genuine analytics route error. Stale `.next`/Vercel output, invalid exports, unsupported runtime, middleware, project linkage, and outdated CLI were independently ruled out. No application or route workaround was added.
 - The next safe evidence is a normal remote Vercel Preview build from the clean branch on Vercel's build environment. Firestore rules remain undeployed until that application Preview succeeds. Unit 003B remains out of scope.
+
+## Remote Preview and staging rules — 2026-07-17
+
+- Committed the Bible diagnosis as `6bccbb0` and pushed `unit-003a-staging-verification` after staged-file, ignored-secret, and diff safety checks passed with no secret values or credential artifacts.
+- A standard remote Vercel Preview build succeeded on Vercel CLI 56.2.0/Linux with Next.js 16.2.10, TypeScript, all 43 static pages, and `/admin/analytics` present as a static route. Deployment `dpl_ApZUDpiKziLzuULDLPDy6uTRoxrh` is Ready at `https://velora-cabs-mcdrugm8q-jyotshinasingh7-ship-its-projects.vercel.app`.
+- After the application gate passed, `firebase.cmd deploy --only firestore:rules --project velora-cabs-staging` compiled and released the matching Unit 003A rules successfully. Production Firebase/Vercel targets were not changed.
+- Anonymous smoke tests passed: `/` returned 200, `/admin/analytics` returned 200, and unauthenticated `POST /api/rides/dispatch` returned the expected 401, confirming the remote route/function output is healthy.
+- Unit 003A remains active pending authenticated verified-customer/approved-driver normal and cash completion, replay, corporate exclusion fixture, legacy dry-run audit, and owner browser confirmation. No real Razorpay charge was made and Unit 003B was not started.

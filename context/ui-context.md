@@ -58,6 +58,6 @@ Last verified: 2026-07-17
 - Keyboard/focus behavior for custom dropdowns, Maps autocomplete, and ride modals needs verification.
 - Some starter SVG assets may be unused; no removal is authorized.
 - The ride sound asset format/playback needs browser verification.
-- The Unit 003A post-ride payment shell is locally built but still requires authenticated Preview browser verification; public staging configuration is fixed, while remote Preview build evidence remains pending because the local Windows Vercel adapter cannot package otherwise-valid static route output.
+- The Unit 003A post-ride payment shell is deployed to staging and still requires authenticated owner browser verification. Anonymous analytics rendering is healthy; local Windows Vercel adapter packaging remains unreliable, while the remote Linux Preview build succeeds.
 
 These observations are documentation only and are not authorization to redesign or perform unrelated cleanup.
