@@ -16,6 +16,7 @@ export type CanonicalPaymentStatus =
 
 export type SettlementStatus =
   | "not_settled"
+  | "pending_driver_earnings"
   | "pending"
   | "available"
   | "withdrawal_reserved"

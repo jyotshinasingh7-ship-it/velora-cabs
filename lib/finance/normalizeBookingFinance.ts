@@ -16,7 +16,7 @@ const PAYMENT_STATUSES = new Set<CanonicalPaymentStatus>([
 ]);
 
 const SETTLEMENT_STATUSES = new Set<SettlementStatus>([
-  "not_settled", "pending", "available", "withdrawal_reserved",
+  "not_settled", "pending_driver_earnings", "pending", "available", "withdrawal_reserved",
   "processing", "settled", "reversed",
 ]);
 

@@ -1,9 +1,9 @@
 # Unit 003A — Final Fare Lock and Payment Lifecycle Separation
 
-- Status: implemented locally; VERIFY remains blocked on emulator and staging/browser evidence
+- Status: implemented and deployed to staging; VERIFY remains blocked on authenticated staging fixtures/browser evidence
 - Owner: Velora project owner
 - Created: 2026-07-16
-- Last updated: 2026-07-16
+- Last updated: 2026-07-17
 - Parent definition: [`Unit 003 — Post-Ride Payment, Platform Commission, Driver Wallet and Settlement`](../completed/unit-003-post-ride-payment-driver-wallet.md)
 - Related decision IDs: VEL-ADR-003, VEL-ADR-004, VEL-ADR-012, VEL-ADR-015, VEL-ADR-016
 - Related Bible sections: `context/architecture.md` (Pricing and payments), `context/project-overview.md` (Planned post-ride finance model), `context/progress-tracker.md` (Unit 003A)
@@ -537,3 +537,40 @@ Unit 003A remains active. Authenticated owner browser verification is still requ
 - After the application gate passed, `firebase.cmd deploy --only firestore:rules --project velora-cabs-staging` compiled and released the matching Unit 003A rules successfully. Production Firebase/Vercel targets were not changed.
 - Anonymous smoke tests passed: `/` returned 200, `/admin/analytics` returned 200, and unauthenticated `POST /api/rides/dispatch` returned the expected 401, confirming the remote route/function output is healthy.
 - Unit 003A remains active pending authenticated verified-customer/approved-driver normal and cash completion, replay, corporate exclusion fixture, legacy dry-run audit, and owner browser confirmation. No real Razorpay charge was made and Unit 003B was not started.
+
+## Staging identity preparation — 2026-07-17
+
+- Audited the existing broad `scripts/seed-test-accounts.mjs`. It is environment-guarded and idempotent, but it creates nine cross-module identities, prints generated passwords to terminal, and its approved-driver record lacks the complete vehicle/service fixture needed for this bounded staging lifecycle test.
+- Added a dedicated staging-only seed workflow at `scripts/seed-unit-003a-staging.mjs`. It permits only project ID `velora-cabs-staging` with an explicit staging/Preview marker, refuses account takeover, verifies Auth and Firestore access before generating credentials, creates only verified customer/approved driver/admin identities, and writes passwords only to ignored `.test-credentials/unit-003a-staging.json` after access succeeds.
+- The planned driver fixture is offline initially and has trusted `users`, approved `driverApplications`, `drivers`, and `vehicles` records, no incoming/active ride, supported local/airport/outstation services, a deterministic staging vehicle, and one isolated staging pricing document. It creates no booking, wallet, commission, receipt, withdrawal, settlement, or Unit 003B record.
+- Dry-run and syntax validation passed. A deliberate `velora-cabs` target was refused before Firebase initialization, proving the production guard.
+- The linked Vercel Preview environment exposed non-empty Admin credential names, but its locally injected `NEXT_PUBLIC_FIREBASE_PROJECT_ID` did not resolve to the expected staging ID. Overriding only the non-secret target ID to `velora-cabs-staging` caused Firebase Auth to reject the Preview Admin identity with `auth/insufficient-permission`. No Auth user or Firestore document was created or changed in staging or production.
+- The seed generated an intended local credential file before the permission failure under its first implementation; that unusable artifact was immediately removed. The workflow now proves both staging Auth and Firestore access before generating or persisting passwords. No credential file currently exists and no password was printed.
+- Live identity creation therefore remains blocked until the Vercel Preview Firebase Admin service account is granted access to `velora-cabs-staging`, or an equivalent staging-only Admin triplet is placed directly in an ignored local environment file. Production credentials must not be reused.
+- Fresh validation passed: staging seed dry-run, `npm.cmd run test:unit003a`, `npx.cmd tsc --noEmit`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, ignored-path verification, and changed-file secret scan. Lint has zero errors and only the same four pre-existing driver-dashboard warnings.
+
+Unit 003A remains active. Authenticated browser completion, cash-pending behavior, replay, corporate exclusion, and the staging legacy audit are still pending. Unit 003B was not started.
+
+## Staging identity retry after credential correction — 2026-07-17
+
+- The owner reported replacing the two Firebase Admin Preview variables with a service-account key generated from `velora-cabs-staging`.
+- A value-free `vercel env run` diagnostic confirmed both Admin variable names are non-empty and the Vercel Preview marker is present. The injected `NEXT_PUBLIC_FIREBASE_PROJECT_ID` still did not resolve to `velora-cabs-staging`.
+- The mandated seed command therefore used its explicit non-secret `velora-cabs-staging` override. The exact-project guard passed, but the Firebase Admin identity was denied. A dedicated sequential access probe reported `FIREBASE_AUTH_ACCESS=FAIL` with `auth/insufficient-permission`; the initial concurrent preflight also returned Firestore `PERMISSION_DENIED`.
+- A read-only Firebase CLI database listing confirmed the staging `(default)` Firestore Native database exists. The failure is Admin identity/IAM or stale Preview-variable delivery, not an absent staging database.
+- Preflight occurs before password generation and before all Auth/Firestore fixture writes. No customer, driver, admin, application, vehicle, service/pricing fixture, or credential file was created. `.test-credentials/unit-003a-staging.json` remains absent and Git-ignored. Production was not targeted or modified.
+- The seed now includes a value-free `--verify-access` mode and reports Auth and Firestore access independently before mutation.
+- Fresh local validation passed: seed syntax/dry-run, Unit 003A focused tests, TypeScript, Next.js production build, and diff checks. Lint returned zero errors and the same four pre-existing driver-dashboard warnings.
+
+Unit 003A remains active. Unit 003B was not started. The next gate is a Preview Admin identity that passes both staging Auth and Firestore access checks.
+
+## Successful staging identity seed — 2026-07-17
+
+- Located exactly one downloaded staging Firebase service-account JSON and validated in memory that its project, service-account email scope, private key, and private-key ID belong to `velora-cabs-staging`; no value or JSON content was printed.
+- Overwrote only the two Sensitive Vercel Preview variables for branch `unit-003a-staging-verification`. Production and Development variables were not changed.
+- Pulled the branch Preview environment to ignored `.env.preview.local`. Because Vercel does not return Sensitive values during `env pull`, hydrated only the two empty local Admin entries directly from the same validated staging JSON. `.env.local` was not read or modified.
+- Value-free checks passed: staging project ID, no production project ID, staging-scoped Admin email, and non-empty private key.
+- Explicit `.env.preview.local` access preflight passed for both Firebase Auth and Firestore.
+- The guarded seed completed and verified three TEST ONLY identities: one verified customer, one approved active driver initially offline with no incoming/active ride, and one active admin. Approved driver application, linked approved dispatch vehicle, supported local/airport/outstation services, and isolated staging pricing fixture all passed verification.
+- Credentials were generated only at ignored `.test-credentials/unit-003a-staging.json`; no password or secret was printed. No wallet, commission, receipt, withdrawal, settlement, production, or Unit 003B record was created.
+
+Unit 003A remains active pending authenticated Preview browser verification of normal and cash completion behavior. Unit 003B was not started.

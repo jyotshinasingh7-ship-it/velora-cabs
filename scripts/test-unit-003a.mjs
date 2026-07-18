@@ -130,12 +130,12 @@ assert.doesNotMatch(otpRoute, /paymentStatus:\s*["']paid["']/);
 assert.doesNotMatch(otpRoute, /cashCollectedAt:\s*FieldValue\.serverTimestamp/);
 assert.doesNotMatch(otpRoute, /driverWallets|walletTransactions|platformCommission/);
 
+assert.match(readFileSync(resolve("app/api/payments/cash/route.ts"), "utf8"), /getUnit003APaymentBoundary/);
 for (const paymentRoute of [
-  "app/api/payments/cash/route.ts",
   "app/api/payments/razorpay/order/route.ts",
   "app/api/payments/razorpay/verify/route.ts",
 ]) {
-  assert.match(readFileSync(resolve(paymentRoute), "utf8"), /getUnit003APaymentBoundary/);
+  assert.match(readFileSync(resolve(paymentRoute), "utf8"), /assertOnlinePaymentEligible/);
 }
 
 console.log("Unit 003A finance primitive, lifecycle, and legacy normalization tests passed.");
